@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.claude/
+
+# Your personal data stays on your computer: profile, resume, jobs, drafts,
+# screenshots, Gmail app password and browser sign-ins all live here.
+/data/
+/data-*/
+resumes/
+
+# Secrets
+.env
+.env.*
+!.env.example

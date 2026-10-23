@@ -1,0 +1,288 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/geist';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-card: var(--card);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --shadow-card: 0 1px 2px rgb(18 18 28 / 0.05), 0 0 0 1px rgb(18 18 28 / 0.045);
+  --shadow-lift: 0 14px 34px -12px rgb(18 18 28 / 0.22), 0 0 0 1px rgb(18 18 28 / 0.06);
+  --shadow-pop: 0 24px 60px -18px rgb(18 18 28 / 0.35), 0 0 0 1px rgb(18 18 28 / 0.07);
+
+  --animate-shimmer: shimmer 1.8s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+}
+
+:root {
+  --bg: #f4f3ef;
+  --panel: #f9f8f5;
+  --card: #ffffff;
+  --raised: #ffffff;
+  --ink: #17161c;
+  --ink-2: #3b3a45;
+  --muted: #6c6b76;
+  --faint: #9d9ca6;
+  --line: #e6e4de;
+  --line-2: #eeece7;
+  --accent: #4a43d4;
+  --accent-ink: #ffffff;
+  --accent-soft: #edecfd;
+  --gold: #b97c12;
+  --gold-soft: #fbf1dd;
+  --ok: #18884a;
+  --ok-soft: #e3f4e9;
+  --warn: #c9620f;
+  --warn-soft: #fdeedd;
+  --bad: #cf3a4c;
+  --bad-soft: #fbe7e9;
+  --info: #2a6fd6;
+  --info-soft: #e5effc;
+
+  --st-discovered: #6f7d99;
+  --st-preparing: #c48a18;
+  --st-needs_input: #d9691a;
+  --st-applied: #4a5ee8;
+  --st-interviewing: #0e9b98;
+  --st-offer: #19944f;
+  --st-archived: #9a9aa4;
+}
+
+.dark {
+  --bg: #0e0e11;
+  --panel: #131317;
+  --card: #19191e;
+  --raised: #1e1e24;
+  --ink: #f2f1f6;
+  --ink-2: #d1cfda;
+  --muted: #9a98a6;
+  --faint: #696774;
+  --line: #2a2a31;
+  --line-2: #212127;
+  --accent: #8d87ff;
+  --accent-ink: #0e0e11;
+  --accent-soft: #24233b;
+  --gold: #e7b04c;
+  --gold-soft: #2b2416;
+  --ok: #4fca82;
+  --ok-soft: #14271c;
+  --warn: #f19a50;
+  --warn-soft: #2d2015;
+  --bad: #f26d7c;
+  --bad-soft: #2e171c;
+  --info: #6aa5ff;
+  --info-soft: #16233a;
+
+  --st-discovered: #8f9bb5;
+  --st-preparing: #e7b04c;
+  --st-needs_input: #f19a50;
+  --st-applied: #8592ff;
+  --st-interviewing: #3cc6c2;
+  --st-offer: #4fca82;
+  --st-archived: #6f6e78;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 0 0 1px rgb(255 255 255 / 0.05);
+  --shadow-lift: 0 18px 40px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.08);
+  --shadow-pop: 0 30px 70px -20px rgb(0 0 0 / 0.8), 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: 'ss01', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 22%, transparent);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--ink) 16%, transparent) transparent;
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* headings: the body face, set tighter and heavier */
+.font-display {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+/* agent "working" sheen */
+.agent-sheen {
+  background-image: linear-gradient(100deg, transparent 20%, color-mix(in oklab, var(--gold) 22%, transparent) 50%, transparent 80%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--line-2) 25%, color-mix(in oklab, var(--line) 80%, var(--card)) 50%, var(--line-2) 75%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+  border-radius: 6px;
+}
+
+/* job description prose */
+.prose-job {
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.prose-job h3,
+.prose-job h4 {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 14.5px;
+  margin: 1.4em 0 0.5em;
+}
+.prose-job p {
+  margin: 0.6em 0;
+}
+.prose-job ul,
+.prose-job ol {
+  margin: 0.5em 0 0.9em;
+  padding-left: 1.2em;
+}
+.prose-job ul {
+  list-style: disc;
+}
+.prose-job ol {
+  list-style: decimal;
+}
+.prose-job li {
+  margin: 0.25em 0;
+  padding-left: 0.2em;
+}
+.prose-job li::marker {
+  color: var(--faint);
+}
+.prose-job a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-job strong,
+.prose-job b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.prose-job > :first-child {
+  margin-top: 0;
+}
+
+/* markdown report */
+.prose-report h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--ink);
+  margin: 1.1em 0 0.35em;
+  letter-spacing: -0.01em;
+}
+.prose-report h2:first-child {
+  margin-top: 0;
+}
+.prose-report p {
+  margin: 0.5em 0;
+  color: var(--ink-2);
+  line-height: 1.65;
+}
+.prose-report ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.4em 0 0.8em;
+}
+.prose-report li {
+  position: relative;
+  padding-left: 1.1em;
+  margin: 0.35em 0;
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+.prose-report li::before {
+  content: '';
+  position: absolute;
+  left: 0.15em;
+  top: 0.68em;
+  width: 5px;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--accent);
+  opacity: 0.7;
+}
+.prose-report strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* hide number spinners */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
