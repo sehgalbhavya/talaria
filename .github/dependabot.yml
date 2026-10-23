@@ -7,6 +7,10 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    # Major upgrades can break things CI won't catch (e.g. Gmail sync), so they're done by hand.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
