@@ -12,6 +12,8 @@ Open an [issue](https://github.com/sehgalbhavya/talaria/issues/new/choose) and i
 
 **Never paste anything from your `data/` folder, your resume, API keys or app passwords.** Remove names and email addresses from logs before sharing.
 
+Found a security problem? Report it privately instead, as described in [SECURITY.md](SECURITY.md).
+
 ## Running it locally
 
 ```bash

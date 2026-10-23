@@ -1,5 +1,7 @@
 # Talaria
 
+[![CI](https://github.com/sehgalbhavya/talaria/actions/workflows/ci.yml/badge.svg)](https://github.com/sehgalbhavya/talaria/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **A job-hunt board that runs on your own computer.** An AI assistant finds jobs that fit you, tells you honestly where you stand, tailors your resume, writes your cover letters, and fills in application forms. **Nothing is ever sent to an employer until you say so.**
 
 You don't need to know anything about AI or programming to use it. This guide starts from zero and walks you through every step. Set aside about **20 to 30 minutes** the first time.
