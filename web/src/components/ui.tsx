@@ -121,12 +121,21 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
 });
 
 export function Field({ label, hint, children, className }: { label: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode; className?: string }) {
+  // Not a wrapping <label>: a label forwards clicks to its first labelable descendant,
+  // which for chip inputs is a pill's remove button. Associate by id instead.
+  const autoId = React.useId();
+  let id: string | undefined;
+  let control = children;
+  if (React.isValidElement<{ id?: string }>(children) && (children.type === Input || children.type === Textarea || children.type === 'input' || children.type === 'textarea' || children.type === 'select')) {
+    id = children.props.id ?? autoId;
+    control = children.props.id ? children : React.cloneElement(children, { id });
+  }
   return (
-    <label className={cn('block', className)}>
-      <span className="mb-1.5 block text-[12.5px] font-medium text-ink-2">{label}</span>
-      {children}
+    <div className={cn('block', className)}>
+      <label htmlFor={id} className="mb-1.5 block text-[12.5px] font-medium text-ink-2">{label}</label>
+      {control}
       {hint && <span className="mt-1.5 block text-[12px] text-muted">{hint}</span>}
-    </label>
+    </div>
   );
 }
 
