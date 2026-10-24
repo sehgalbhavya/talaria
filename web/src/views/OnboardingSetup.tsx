@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { ArrowRight, Check, ChevronDown, CircleDashed, Globe, HardDrive, Loader2, MessageSquare, RefreshCw, Search, Send, ShieldCheck, FileText } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ArrowLeft, ArrowRight, Check, ChevronDown, CircleDashed, HardDrive, Loader2, MessageSquare, RefreshCw, Search, Send, ShieldCheck, FileText } from 'lucide-react';
 import type { SetupStatus } from '@shared/types';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
@@ -13,6 +14,43 @@ export function StepHeader({ kicker, title, children }: { kicker: string; title:
       <h2 className="mt-2 font-display text-[32px] leading-[1.05] tracking-[-0.015em] text-ink">{title}</h2>
       {children && <p className="mt-3 text-[15px] leading-relaxed text-muted">{children}</p>}
     </div>
+  );
+}
+
+/** Where each step's Back / Continue buttons go: one bar pinned to the bottom, so they never move. */
+export const FooterSlot = React.createContext<HTMLElement | null>(null);
+
+export function StepFooter({ back, backLabel = 'Back', children }: { back?: () => void; backLabel?: string; children: React.ReactNode }) {
+  const slot = React.useContext(FooterSlot);
+  const bar = (
+    <div className="flex items-center justify-between gap-3">
+      {back ? (
+        <Button variant="ghost" icon={<ArrowLeft className="size-4" />} onClick={back}>
+          {backLabel}
+        </Button>
+      ) : (
+        <span />
+      )}
+      <div className="flex items-center gap-2">{children}</div>
+    </div>
+  );
+  return slot ? createPortal(bar, slot) : bar;
+}
+
+export function NextButton({ children = 'Continue', ...rest }: React.ComponentProps<typeof Button>) {
+  return (
+    <Button variant="primary" size="lg" icon={<ArrowRight className="size-4" />} className="flex-row-reverse" {...rest}>
+      {children}
+    </Button>
+  );
+}
+
+/** A quiet "skip" next to the main button: there if you need it, never competing with it. */
+export function SkipLink({ onClick, title, children = 'Skip for now' }: { onClick: () => void; title?: string; children?: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} title={title} className="px-2 text-[13px] text-faint underline-offset-2 hover:text-muted hover:underline">
+      {children}
+    </button>
   );
 }
 
@@ -69,11 +107,9 @@ export function WelcomeStep({ kicker, next }: { kicker: string; next: () => void
         </span>
       </div>
 
-      <div className="mt-8 flex justify-end">
-        <Button variant="primary" size="lg" onClick={next} icon={<ArrowRight className="size-4" />} className="flex-row-reverse">
-          Let's start
-        </Button>
-      </div>
+      <StepFooter>
+        <NextButton onClick={next}>Let's start</NextButton>
+      </StepFooter>
     </div>
   );
 }
@@ -279,22 +315,12 @@ export function ConnectStep({ kicker, next, back }: { kicker: string; next: () =
         </Collapsible>
       </div>
 
-      <div className="mt-8 flex items-center justify-between">
-        <Button variant="ghost" onClick={back}>
-          Back
-        </Button>
-        <div className="flex items-center gap-3">
-          {!connected && <span className="text-[12.5px] text-faint">Test the connection to continue</span>}
-          <Button variant="primary" size="lg" onClick={next} disabled={!connected} icon={<ArrowRight className="size-4" />} className="flex-row-reverse">
-            Continue
-          </Button>
-        </div>
-      </div>
-      {!connected && (
-        <button type="button" onClick={next} className="mt-3 ml-auto flex items-center gap-1 text-[12px] text-faint underline-offset-2 hover:text-muted hover:underline">
-          <Globe className="size-3" /> Skip for now (nothing will work until this is connected)
-        </button>
-      )}
+      {!connected && <p className="mt-5 text-[12.5px] text-faint">Test the connection to continue. You can skip it for now, but nothing will work until it's connected.</p>}
+
+      <StepFooter back={back}>
+        {!connected && <SkipLink onClick={next} title="Nothing will work until the AI is connected" />}
+        <NextButton onClick={next} disabled={!connected} />
+      </StepFooter>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, Check, FileText, Loader2, Pencil, RefreshCw, Sparkles, UploadCloud } from 'lucide-react';
+import { Check, FileText, Loader2, Pencil, RefreshCw, Sparkles, UploadCloud } from 'lucide-react';
 import type { AgentRun, OnboardingProgress, Preferences, Profile, RemotePreference, Seniority } from '@shared/types';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
@@ -10,7 +10,7 @@ import { Button, ChipInput, Field, Input, Segmented, Switch, Textarea } from '@/
 import { Logo } from '@/components/brand';
 import { useElapsed } from '@/components/drawer/hooks';
 import { BOARDS, SourcesEditor } from '@/views/Profile';
-import { ConnectStep, StepHeader, WelcomeStep } from '@/views/OnboardingSetup';
+import { ConnectStep, FooterSlot, NextButton, SkipLink, StepFooter, StepHeader, WelcomeStep } from '@/views/OnboardingSetup';
 
 // The sidebar's sections and the screens inside them. Every step number on screen comes from here.
 const SECTIONS = ['Welcome', 'Connect the AI', 'Your resume', 'Your story', "What you're after", 'Is this you?', 'Where to look', 'Review & start'];
@@ -157,6 +157,7 @@ export function Onboarding() {
   const [screen, setScreen] = React.useState<Screen>(() => (saved && SCREENS.some(s => s.id === saved) ? saved : profile ? 'story' : 'welcome'));
   const root = React.useRef<HTMLDivElement>(null);
   const scroller = React.useRef<HTMLElement>(null);
+  const [footer, setFooter] = React.useState<HTMLDivElement | null>(null);
   const reading = useResumeReading();
 
   const go = (next: Screen) => {
@@ -220,51 +221,33 @@ export function Onboarding() {
         </ol>
       </aside>
 
-      <main ref={scroller} className="flex min-h-full flex-col px-6 py-12 lg:overflow-y-auto">
-        <div className="mx-auto w-full max-w-[620px] lg:my-auto">
+      <main ref={scroller} className="flex min-h-full flex-col px-6 lg:overflow-y-auto lg:[scrollbar-gutter:stable]">
+        <div className="mx-auto flex w-full max-w-[620px] flex-1 flex-col pt-12">
           {screen !== 'resume' && screen !== 'you' && <ReadingBanner reading={reading} onRetry={() => go('resume')} invite={screen === 'story' ? 'While Hermes reads your resume, tell us your story.' : undefined} />}
-          <AnimatePresence mode="wait">
-            <motion.div key={screen} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
-              {screen === 'welcome' && <WelcomeStep kicker={nav.kicker} next={nav.next} />}
-              {screen === 'connect' && <ConnectStep kicker={nav.kicker} next={nav.next} back={nav.back} />}
-              {screen === 'resume' && <ResumeStep {...nav} />}
-              {screen === 'story' && <StoryStep {...nav} />}
-              {screen === 'roles' && <RolesStep {...nav} />}
-              {screen === 'where' && <WhereStep {...nav} />}
-              {screen === 'matters' && <MattersStep {...nav} />}
-              {screen === 'you' && <ProfileCheckStep {...nav} />}
-              {screen === 'sources' && <SourcesStep {...nav} />}
-              {screen === 'launch' && <LaunchStep {...nav} />}
-            </motion.div>
-          </AnimatePresence>
+          <FooterSlot.Provider value={footer}>
+            <AnimatePresence mode="wait">
+              <motion.div key={screen} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
+                {screen === 'welcome' && <WelcomeStep kicker={nav.kicker} next={nav.next} />}
+                {screen === 'connect' && <ConnectStep kicker={nav.kicker} next={nav.next} back={nav.back} />}
+                {screen === 'resume' && <ResumeStep {...nav} />}
+                {screen === 'story' && <StoryStep {...nav} />}
+                {screen === 'roles' && <RolesStep {...nav} />}
+                {screen === 'where' && <WhereStep {...nav} />}
+                {screen === 'matters' && <MattersStep {...nav} />}
+                {screen === 'you' && <ProfileCheckStep {...nav} />}
+                {screen === 'sources' && <SourcesStep {...nav} />}
+                {screen === 'launch' && <LaunchStep {...nav} />}
+              </motion.div>
+            </AnimatePresence>
+          </FooterSlot.Provider>
+          {/* Each step's Back / Continue land here, outside the page animation, so they stay exactly where they are. */}
+          <div ref={setFooter} className="sticky bottom-0 z-10 mt-auto bg-gradient-to-t from-bg from-70% to-transparent pt-10 pb-8" />
         </div>
       </main>
     </div>
   );
 }
 
-function Footer({ back, backLabel = 'Back', children }: { back?: () => void; backLabel?: string; children: React.ReactNode }) {
-  return (
-    <div className="mt-8 flex items-center justify-between gap-3">
-      {back ? (
-        <Button variant="ghost" icon={<ArrowLeft className="size-4" />} onClick={back}>
-          {backLabel}
-        </Button>
-      ) : (
-        <span />
-      )}
-      <div className="flex items-center gap-2">{children}</div>
-    </div>
-  );
-}
-
-function NextButton({ children = 'Continue', ...rest }: React.ComponentProps<typeof Button>) {
-  return (
-    <Button variant="primary" size="lg" icon={<ArrowRight className="size-4" />} className="flex-row-reverse" {...rest}>
-      {children}
-    </Button>
-  );
-}
 
 // ---------------- 3. Resume ----------------
 
@@ -324,12 +307,12 @@ function ResumeStep({ kicker, next, back }: Nav) {
             {reading.state === 'reading' && <Loader2 className="size-4 animate-spin text-gold" />}
           </div>
         </div>
-        <Footer back={back}>
+        <StepFooter back={back}>
           <Button variant="ghost" icon={reading.state === 'error' ? <RefreshCw className="size-4" /> : <UploadCloud className="size-4" />} onClick={() => setReplacing(true)}>
             {reading.state === 'error' ? 'Try again' : 'Use a different resume'}
           </Button>
           <NextButton onClick={next}>Continue</NextButton>
-        </Footer>
+        </StepFooter>
       </div>
     );
   }
@@ -367,7 +350,7 @@ function ResumeStep({ kicker, next, back }: Nav) {
       {error && <p className="mt-3 rounded-lg bg-bad-soft px-3 py-2 text-[12.5px] leading-relaxed text-bad">{error}</p>}
       <p className="mt-3 text-[12.5px] text-faint">Your resume stays on this computer; only its text goes to your AI provider, through Hermes.</p>
 
-      <Footer back={replacing ? () => setReplacing(false) : back} backLabel={replacing ? 'Keep the current one' : 'Back'}>
+      <StepFooter back={replacing ? () => setReplacing(false) : back} backLabel={replacing ? 'Keep the current one' : 'Back'}>
         <Button variant="ghost" onClick={() => setPaste(p => !p)}>
           {paste ? 'Upload a file instead' : 'Paste text instead'}
         </Button>
@@ -376,7 +359,7 @@ function ResumeStep({ kicker, next, back }: Nav) {
             Read my resume
           </Button>
         )}
-      </Footer>
+      </StepFooter>
     </div>
   );
 }
@@ -422,14 +405,12 @@ function StoryStep({ kicker, next, back }: Nav) {
         ))}
       </div>
 
-      <Footer back={() => save(back)}>
-        <button type="button" onClick={() => save(next)} className="px-2 text-[13px] text-faint underline-offset-2 hover:text-muted hover:underline">
-          Skip for now
-        </button>
+      <StepFooter back={() => save(back)}>
+        <SkipLink onClick={() => save(next)} />
         <NextButton disabled={filled < STORY_QUESTIONS.length} title={filled < STORY_QUESTIONS.length ? `${filled} of ${STORY_QUESTIONS.length} answered` : undefined} onClick={() => save(next)}>
           Next
         </NextButton>
-      </Footer>
+      </StepFooter>
     </div>
   );
 }
@@ -605,10 +586,10 @@ function RolesStep({ kicker, next, back }: Nav) {
       <div className="space-y-5">
         <RolesFields prefs={draft} onChange={change} />
       </div>
-      <Footer back={back}>
+      <StepFooter back={back}>
         {!draft.roles.length && <span className="text-[12.5px] text-faint">Add at least one role</span>}
         <NextButton loading={saving} disabled={!draft.roles.length || !draft.seniority.length} onClick={() => save(next)} />
-      </Footer>
+      </StepFooter>
     </div>
   );
 }
@@ -624,9 +605,9 @@ function WhereStep({ kicker, next, back }: Nav) {
       <div className="space-y-5">
         <WhereFields prefs={draft} onChange={change} />
       </div>
-      <Footer back={back}>
+      <StepFooter back={back}>
         <NextButton loading={saving} onClick={() => save(next)} />
-      </Footer>
+      </StepFooter>
     </div>
   );
 }
@@ -645,9 +626,9 @@ function MattersStep({ kicker, next, back }: Nav) {
           <ChipInput value={draft.excludeCompanies} onChange={excludeCompanies => change({ excludeCompanies })} placeholder="e.g. current employer" />
         </Field>
       </div>
-      <Footer back={back}>
+      <StepFooter back={back}>
         <NextButton loading={saving} onClick={() => save(next)} />
-      </Footer>
+      </StepFooter>
     </div>
   );
 }
@@ -702,13 +683,13 @@ function ProfileCheckStep({ kicker, next, back, go }: Nav) {
             </div>
           </div>
         )}
-        <Footer back={back}>
+        <StepFooter back={back}>
           {failed && (
             <Button variant="primary" size="lg" icon={<RefreshCw className="size-4" />} onClick={() => go('resume')}>
               Try again
             </Button>
           )}
-        </Footer>
+        </StepFooter>
       </div>
     );
   }
@@ -751,11 +732,11 @@ function ProfileCheckStep({ kicker, next, back, go }: Nav) {
         <p className="text-[12.5px] text-faint">You can fine-tune every bullet point later on the Profile page.</p>
       </div>
 
-      <Footer back={back}>
+      <StepFooter back={back}>
         <NextButton loading={saving} disabled={!p.name.trim()} onClick={save}>
           Looks right
         </NextButton>
-      </Footer>
+      </StepFooter>
     </div>
   );
 }
@@ -801,9 +782,9 @@ function SourcesStep({ kicker, next, back }: Nav) {
         Pick the job boards to search. Then add your own sources: any company you'd love to work for, by name or by the link to its careers page. Talaria works out where it posts and watches it for you.
       </StepHeader>
       <SourcesEditor prefs={prefs} onChange={p => setPrefs(x => ({ ...x, ...p, sources: { ...x.sources, ...(p.sources || {}) } }))} />
-      <Footer back={back}>
+      <StepFooter back={back}>
         <NextButton loading={saving} onClick={save} />
-      </Footer>
+      </StepFooter>
     </div>
   );
 }
@@ -868,12 +849,12 @@ function LaunchStep({ kicker, back, go }: Nav) {
         <Switch checked={autopilot} onChange={setAutopilot} label="Autopilot" />
       </div>
 
-      <Footer back={back}>
+      <StepFooter back={back}>
         {!profile && <span className="text-[12.5px] text-faint">Waiting for Hermes to finish your resume</span>}
         <Button variant="primary" size="lg" loading={busy} disabled={!profile || !prefs.roles.length} icon={<Sparkles className="size-4 text-gold" />} onClick={start}>
           Start the hunt
         </Button>
-      </Footer>
+      </StepFooter>
     </div>
   );
 }
