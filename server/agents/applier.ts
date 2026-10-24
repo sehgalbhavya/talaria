@@ -16,7 +16,8 @@ import { compileLatex } from '../lib/latex.ts';
 import { coverLetterPdf, resumePdf } from '../lib/resumePdf.tsx';
 import { addChat, markApplied } from './pipeline.ts';
 
-export type Ats = 'greenhouse' | 'lever' | 'ashby';
+/** greenhouse/lever/ashby: filled and submitted by Talaria. other: any other site, filled for you to review and submit. */
+export type Ats = 'greenhouse' | 'lever' | 'ashby' | 'other';
 
 /** Which supported ATS form a job applies through, and the form's URL. */
 export function applyTarget(job: Job): { ats: Ats; url: string } | null {
@@ -38,7 +39,9 @@ export function applyTarget(job: Job): { ats: Ats; url: string } | null {
     const [slug, id] = job.sourceId.split(':');
     return { ats: 'greenhouse', url: `https://job-boards.greenhouse.io/${slug}/jobs/${id}` };
   }
-  return null;
+  // Any other site (Workday, Teamtailor, a company's own page): Talaria opens it and fills what it can.
+  const own = candidates.find(c => /^https?:\/\//i.test(c));
+  return own ? { ats: 'other', url: own } : null;
 }
 
 // ---------------- reading the form ----------------
@@ -243,6 +246,80 @@ function facts(job: Job): string {
   return lines.filter(Boolean).join('\n');
 }
 
+
+// ---------------- which file goes where ----------------
+
+export interface JobFiles {
+  resume: string;
+  cover?: string;
+}
+
+/**
+ * Decide, for each file field, which of THIS job's documents belongs in it (or none).
+ * A field is only given a document when its label or name says what it is; "other documents",
+ * portfolios and transcripts are left empty rather than getting the wrong PDF. A lone unlabeled
+ * file field is the resume.
+ */
+export function planFiles(fields: FormField[], files: JobFiles): Record<string, string> {
+  const out: Record<string, string> = {};
+  const fileFields = fields.filter(f => f.kind === 'file');
+  for (const f of fileFields) {
+    const l = lc(`${f.label} ${f.name}`);
+    if (/autofill|auto-fill|parse|import|linkedin/.test(l)) continue; // would overwrite what we fill
+    if (/cover|motivation/.test(l)) {
+      if (files.cover) out[f.id] = files.cover;
+    } else if (/resume|r[eé]sum[eé]|\bcv\b|curriculum/.test(l)) {
+      out[f.id] = files.resume;
+    } else if (fileFields.length === 1 && !/portfolio|transcript|certificate|work sample|reference|photo|picture|other|additional|supporting/.test(l)) {
+      out[f.id] = files.resume;
+    }
+  }
+  return out;
+}
+
+/**
+ * Check each upload: the form must show exactly the file we meant. Some widgets (Greenhouse) empty the
+ * hidden <input> once they take the file, so the filename shown beside it counts too. A file is only
+ * cleared when the form holds a DIFFERENT one; "nothing shown" is reported but left alone.
+ */
+export async function verifyUploads(page: Page, expected: Record<string, string>): Promise<{ id: string; want: string; got: string; clear: boolean }[]> {
+  const bad: { id: string; want: string; got: string; clear: boolean }[] = [];
+  for (const [id, file] of Object.entries(expected)) {
+    const want = path.basename(file);
+    let seen = { inputs: [] as string[], shown: [] as string[] };
+    // Upload widgets take a moment to show the file: look for up to 5 seconds before judging.
+    for (let tries = 0; tries < 10; tries++) {
+      seen = await readUpload(page, id);
+      if ([...seen.inputs, ...seen.shown].some(n => n.trim() === want || n.trim().endsWith(want))) break;
+      await page.waitForTimeout(500);
+    }
+    const names = [...seen.inputs, ...seen.shown.map(x => x.trim())];
+    if (names.some(n => n === want || n.endsWith(want))) {
+      if (!seen.inputs.some(n => n !== want)) continue;
+    }
+    const other = seen.inputs.find(n => n !== want);
+    bad.push({ id, want, got: other || seen.shown.join(', '), clear: Boolean(other) });
+  }
+  return bad;
+}
+
+async function readUpload(page: Page, id: string): Promise<{ inputs: string[]; shown: string[] }> {
+  return await page
+    .evaluate((i: string) => {
+      const el = document.querySelector<HTMLInputElement>(`[data-talaria="${i}"]`);
+      // Widgets show the chosen file's name somewhere on the form, not always next to the input.
+      const text = document.body.innerText || '';
+      return { inputs: [...(el?.files || [])].map(f => f.name), shown: text.match(/[\w.\- ()]+\.(?:pdf|docx?|rtf|txt)\b/gi) || [] };
+    }, id)
+    .catch(() => ({ inputs: [] as string[], shown: [] as string[] }));
+}
+
+/** The cover letter as the form wants it: pasted word for word into a "cover letter" text box. */
+export function coverLetterText(f: FormField, text?: string): string | undefined {
+  if (!text?.trim() || !['textarea', 'text'].includes(f.kind)) return undefined;
+  return /cover.?letter|letter of motivation|motivation letter/i.test(`${f.label} ${f.name}`) ? text.trim() : undefined;
+}
+
 // ---------------- filling ----------------
 
 function best(options: string[], want: string): string | undefined {
@@ -321,6 +398,8 @@ export async function fillField(page: Page, f: FormField, value: unknown): Promi
 async function writeFiles(job: Job): Promise<{ resume: string; cover?: string }> {
   const dir = path.join(DATA_DIR, 'applications', job.id);
   fs.mkdirSync(dir, { recursive: true });
+  // This folder only ever holds this job's documents; drop earlier versions so none can be picked up by mistake.
+  for (const old of fs.readdirSync(dir)) if (/\.pdf$/i.test(old)) fs.rmSync(path.join(dir, old), { force: true });
   const p = job.packet!;
   const safe = (s: string) => s.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '');
   const name = safe(p.resume.name || 'Resume');
@@ -356,7 +435,22 @@ export async function readComboOptions(page: Page, fields: FormField[]) {
   }
 }
 
-export async function openForm(page: Page, ats: Ats, url: string) {
+/** Company career pages that embed a Greenhouse form: the real form's address, so Talaria can open it directly. */
+async function embeddedGreenhouse(page: Page): Promise<string | null> {
+  const html = await page.content().catch(() => '');
+  let jid: string | null = null;
+  try {
+    jid = new URL(page.url()).searchParams.get('gh_jid');
+  } catch {}
+  jid = jid || html.match(/[?&](?:gh_jid|token)=(\d{5,})/)?.[1] || null;
+  const slug = html.match(/greenhouse\.io\/embed\/job_(?:app|board)\?[^"'\s]*?for=([\w-]+)/)?.[1] || html.match(/(?:job-boards|boards)\.greenhouse\.io\/([\w-]+)\/jobs\//)?.[1];
+  return slug && jid ? `https://job-boards.greenhouse.io/${slug}/jobs/${jid}` : null;
+}
+
+const FORM_READY = 'input[type="file"], input[type="email"], input[name*="email" i]';
+
+/** Opens the form and says which kind it turned out to be, and whether a fillable form is on screen. */
+export async function openForm(page: Page, ats: Ats, url: string): Promise<{ ats: Ats; ready: boolean }> {
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await page.waitForTimeout(2500);
   const title = await page.title().catch(() => '');
@@ -364,13 +458,51 @@ export async function openForm(page: Page, ats: Ats, url: string) {
   if (/404|not found/i.test(title) || /no longer (accepting|available|open)|couldn.t find anything here|job not found|job (posting )?(has )?(been )?closed|position has been filled/i.test(body)) {
     throw new Error('This posting has closed — the company is no longer accepting applications.');
   }
-  // Greenhouse and Ashby show the description first; jump to the form.
-  const applyBtn = page.locator('button:has-text("Apply"), a:has-text("Apply for this job"), a:has-text("Apply")').first();
-  if (ats !== 'lever' && (await page.locator('input[type="file"]').count()) === 0 && (await applyBtn.count())) {
-    await applyBtn.click({ timeout: 5000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+  // A company page with a Greenhouse form inside it: go to the form itself.
+  if (ats === 'other' && (await page.locator('input[type="file"]').count()) === 0) {
+    const gh = await embeddedGreenhouse(page);
+    if (gh) {
+      await page.goto(gh, { waitUntil: 'domcontentloaded', timeout: 45000 });
+      await page.waitForTimeout(2500);
+      ats = 'greenhouse';
+    }
   }
-  await page.waitForSelector('input[type="file"], input[type="email"], input[name*="email" i]', { timeout: 20000 });
+  // Greenhouse and Ashby show the description first; jump to the form. Other sites: try the Apply button too.
+  const applyBtn = page.locator('button:has-text("Apply"), a:has-text("Apply for this job"), a:has-text("Apply now"), a:has-text("Apply")').first();
+  if (ats !== 'lever' && (await page.locator('input[type="file"]').count()) === 0 && (await applyBtn.count())) {
+    // A link: go straight to where it points (clicks get blocked by cookie banners). Otherwise click it.
+    const href = await applyBtn.getAttribute('href').catch(() => null);
+    let target: string | null = null;
+    try {
+      if (href && !/^(#|javascript:|mailto:)/i.test(href)) target = new URL(href, page.url()).href;
+    } catch {}
+    if (target) await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
+    else await applyBtn.click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+  }
+  try {
+    await page.waitForSelector(FORM_READY, { timeout: ats === 'other' ? 12000 : 20000 });
+    return { ats, ready: true };
+  } catch (err) {
+    // The form may sit inside an embedded frame (company career pages do this): open the frame's own address.
+    const inner = await formFrameUrl(page);
+    if (inner) {
+      await page.goto(inner, { waitUntil: 'domcontentloaded', timeout: 45000 });
+      await page.waitForSelector(FORM_READY, { timeout: 15000 });
+      return { ats: /greenhouse\.io/.test(inner) ? 'greenhouse' : ats, ready: true };
+    }
+    // On an unknown site the form may need a sign-in or sit behind more steps: leave the page open for you.
+    if (ats === 'other') return { ats, ready: false };
+    throw err;
+  }
+}
+
+async function formFrameUrl(page: Page): Promise<string | null> {
+  for (const f of page.frames()) {
+    if (f === page.mainFrame() || !/^https?:/.test(f.url()) || /recaptcha|googleapis|hcaptcha/.test(f.url())) continue;
+    if ((await f.locator('input[type="file"], input[type="email"]').count().catch(() => 0)) > 0) return f.url();
+  }
+  return null;
 }
 
 const AUTH = /authori[sz]ed to work|right to work|work permit|eligib\w* to work|legally (able|allowed|authori[sz]ed)|sponsor|visa/i;
@@ -405,7 +537,9 @@ async function emptyFields(page: Page, fields: FormField[]): Promise<Set<string>
         const hasButtons = el.closest('div')?.parentElement?.querySelector('button');
         if (!el.checked && !hasButtons) out.push(f.id);
       } else if (f.kind === 'file') {
-        if (!el.files || el.files.length === 0) out.push(f.id);
+        // Some widgets empty the input once they take the file and show its name instead.
+        const shown = /\.(pdf|docx?|rtf|txt)/i.test(document.body.innerText || '');
+        if ((!el.files || el.files.length === 0) && !shown) out.push(f.id);
       } else if (!String(el.value || '').trim()) out.push(f.id);
     }
     return out;
@@ -448,8 +582,16 @@ export async function autoApply(jobId: string, opts: { dryRun?: boolean; handle?
     step('Preparing your documents');
     const files = await writeFiles(job);
     step('Opening the application form');
-    await openForm(page, target.ats, target.url);
+    const opened = await openForm(page, target.ats, target.url);
+    const ats = opened.ats;
     await page.bringToFront().catch(() => {});
+    if (!opened.ready) {
+      // Nothing to fill yet (a sign-in wall, or a form that starts on a later step). Keep the window open.
+      const msg = `${job.company}'s page has no form to fill yet. It's open in the Talaria window: sign in or start the application there, then use the Apply kit for your documents.`;
+      if (!opts.dryRun) updateJob(jobId, j => (j.work.submit = { state: 'error', error: msg, at: now() }));
+      finishRun(h, false, undefined, 'No form found on the page');
+      return { status: 'needs_you', filled: 0, total: 0, missing: [], message: msg };
+    }
 
     const fields = await readForm(page);
     await readComboOptions(page, fields);
@@ -470,16 +612,13 @@ export async function autoApply(jobId: string, opts: { dryRun?: boolean; handle?
       title: profile.experience[0]?.title,
     };
 
-    const values: Record<string, unknown> = {};
+    const values: Record<string, unknown> = { ...planFiles(fields, files) };
     const rest2: FormField[] = [];
     for (const f of fields) {
-      if (f.kind === 'file') {
-        const l = lc(`${f.label} ${f.name}`);
-        // "Autofill from resume" boxes would overwrite what we fill; skip them.
-        if (/autofill|auto-fill|parse|import/.test(l) || (!f.label && fields.some(x => x.kind === 'file' && /resume|cv/i.test(x.label)))) continue;
-        if (/cover/.test(l)) {
-          if (files.cover) values[f.id] = files.cover;
-        } else if (/resume|cv|attach/.test(l) || !Object.values(values).includes(files.resume)) values[f.id] = files.resume;
+      if (f.kind === 'file') continue; // handled by planFiles below
+      const cover = coverLetterText(f, job.packet.coverLetter);
+      if (cover) {
+        values[f.id] = cover; // word for word, not rewritten
         continue;
       }
       const v = standardValue(f, ctx);
@@ -546,11 +685,23 @@ export async function autoApply(jobId: string, opts: { dryRun?: boolean; handle?
       report.push({ label: f.label, kind: f.kind, required: f.required, value: f.kind === 'file' ? path.basename(String(v)) : String(Array.isArray(v) ? v.join(', ') : v).slice(0, 80), ok });
       await page.waitForTimeout(120);
     }
+    // Read every upload back: each file input must hold exactly the document meant for it, from this job's folder.
+    const planned = planFiles(fields, files);
+    const wrong = await verifyUploads(page, planned);
+    for (const w of wrong) {
+      const f = fields.find(x => x.id === w.id)!;
+      h.log(`Upload check failed for "${f.label}": wanted ${w.want}, form holds ${w.got || 'nothing'}`);
+      if (w.clear) await page.setInputFiles(`[data-talaria="${w.id}"]`, []).catch(() => {}); // never leave a wrong file in place
+    }
+    const wrongIds = new Set(wrong.map(w => w.id));
     // Read every field back: anything required that's still empty blocks submission.
     const empty = await emptyFields(page, fields);
+    for (const id of wrongIds) empty.add(id);
     const unansweredRequired = fields.filter(f => f.required && (empty.has(f.id) || values[f.id] == null || values[f.id] === ''));
     for (const f of unansweredRequired) if (!missing.some(m => m.label === f.label)) missing.push({ label: f.label, question: f.label });
     filled = fields.filter(f => !empty.has(f.id) && values[f.id] != null && values[f.id] !== '').length;
+    const uploaded = Object.entries(planned).filter(([id]) => !wrongIds.has(id)).map(([id, file]) => `${fields.find(f => f.id === id)?.label || 'file'}: ${path.basename(file)}`);
+    if (uploaded.length) h.log(`Uploaded ${uploaded.join(' · ')}`);
     h.log(`Filled ${filled} of ${fields.length} fields${missing.length ? ` · ${missing.length} need you` : ''}`);
 
     const shotDir = path.join(DATA_DIR, 'applications', jobId);
@@ -560,6 +711,16 @@ export async function autoApply(jobId: string, opts: { dryRun?: boolean; handle?
     if (opts.dryRun) {
       finishRun(h, true, `Test fill: ${filled}/${fields.length} fields`);
       return { status: 'dry_run', filled, total: fields.length, missing, message: 'Filled without submitting', screenshot, report };
+    }
+
+    if (ats === 'other') {
+      // Unknown sites are filled but never submitted by Talaria: you look it over and press Submit.
+      const left = missing.length ? ` ${missing.length} field${missing.length > 1 ? 's' : ''} need you: ${missing.map(m => m.label).slice(0, 4).join('; ')}.` : '';
+      const msg = `Filled ${filled} of ${fields.length} fields on ${job.company}'s form.${left} Check it in the Talaria window, then submit it yourself.`;
+      updateJob(jobId, j => (j.work.submit = { state: 'done', step: 'Filled, waiting for you to submit', at: now() }), { at: now(), text: 'Talaria filled the form; you submit it', kind: 'agent' });
+      addChat(jobId, { from: 'hermes', kind: 'status', text: `${msg} Once you've sent it, mark the application as applied.` });
+      finishRun(h, true, `Filled ${filled}/${fields.length}, left for you to submit`);
+      return { status: 'needs_you', filled, total: fields.length, missing, message: msg, screenshot, report };
     }
 
     if (missing.length) {

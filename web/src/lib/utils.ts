@@ -99,7 +99,9 @@ export function canAutoApply(j: Job): boolean {
       if ((u.hostname === 'jobs.lever.co' || u.hostname === 'jobs.ashbyhq.com') && parts.length >= 2) return true;
     } catch {}
   }
-  return j.source === 'greenhouse' && j.sourceId.includes(':');
+  if (j.source === 'greenhouse' && j.sourceId.includes(':')) return true;
+  // Any other site: Talaria opens it and fills it in, and you press Submit.
+  return [j.applyUrl, j.url].some(u => /^https?:\/\//i.test(u || ''));
 }
 
 export function workingStep(j: Job) {

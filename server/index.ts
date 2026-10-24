@@ -497,7 +497,7 @@ app.post('/api/jobs/:id/auto-apply', async (req, res) => {
   const j = store.getJob(req.params.id);
   if (!j?.packet) return job404(res);
   if (!j.packet.approvedAt) return res.status(400).json({ error: 'Approve the application first.' });
-  if (!applyTarget(j)) return res.status(400).json({ error: 'Auto-apply works on Greenhouse, Lever and Ashby forms. Use the Apply kit for this one.' });
+  if (!applyTarget(j)) return res.status(400).json({ error: 'This job has no web address to open. Use the Apply kit for this one.' });
   const ready = await playwrightReady();
   if (!ready.ok) return res.status(500).json({ error: ready.error });
   store.updateJob(j.id, x => (x.work.submit = { state: 'running', step: 'Starting', at: store.now() }));

@@ -733,7 +733,7 @@ function Footer({ job, openKit }: { job: Job; openKit: () => void }) {
       if (r.mode === 'kit') {
         if (r.error) toast.error(r.error);
         openKit();
-      } else toast(`Submitting to ${job.company} in the Talaria window`, { icon: <Send className="size-4" /> });
+      } else toast(`Opening ${job.company}'s form in the Talaria window`, { icon: <Send className="size-4" /> });
     } finally {
       setBusy(false);
     }
