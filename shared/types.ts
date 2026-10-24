@@ -99,6 +99,7 @@ export interface Profile {
 }
 
 export type Seniority = 'intern' | 'entry' | 'mid' | 'senior' | 'lead';
+export type WorkKind = 'full_time' | 'internship' | 'phd';
 export type RemotePreference = 'remote_only' | 'remote_or_hybrid' | 'any' | 'onsite';
 
 /** A company you want watched. "site" = its own careers website (read from the page, or searched within it). */
@@ -125,6 +126,7 @@ export interface Preferences {
   sources: Partial<Record<SourceId, boolean>>;
   maxAgeDays: number;
   phd?: { enabled: boolean; fields: string[]; countries: string[] }; // PhD positions: research fields and where
+  lookingFor?: WorkKind[]; // what kind of work you want; unset means jobs, as before onboarding asked
 }
 
 export interface AnswerBankItem {
@@ -363,6 +365,15 @@ export interface Settings {
   gmail?: { connected: boolean; email?: string; autoCheck?: boolean; lastCheckAt?: string; lastResult?: string; error?: string };
   voice?: { connected: boolean; model?: string }; // voice typing via your own Gemini key (being tested)
   theme?: 'light' | 'dark' | 'system';
+  onboarding?: OnboardingProgress;
+}
+
+/** Where you are in first-time setup, so closing the window halfway doesn't lose anything. */
+export interface OnboardingProgress {
+  step?: string;
+  resumeName?: string; // the file Hermes is reading (or read)
+  story?: Record<string, string>; // answers to the "your story" questions, keyed by question id
+  confirmedPrefs?: (keyof Preferences)[]; // set by you already, so resume suggestions mustn't overwrite them
 }
 
 export interface Report {

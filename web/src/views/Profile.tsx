@@ -416,7 +416,7 @@ function PreferencesTab() {
 
 // ---------------- sources ----------------
 
-const BOARDS: { id: SourceId; name: string; desc: string }[] = [
+export const BOARDS: { id: SourceId; name: string; desc: string }[] = [
   { id: 'hermes_web', name: 'Hermes web search', desc: "Hermes searches the open web: companies' own career sites, Workday, Greenhouse, Lever and more." },
   { id: 'remotive', name: 'Remotive', desc: 'Curated remote tech jobs.' },
   { id: 'remoteok', name: 'Remote OK', desc: 'Large feed of remote roles worldwide.' },
@@ -569,7 +569,12 @@ export function SourcesEditor({ prefs, onChange }: { prefs: Preferences; onChang
           </div>
         )}
 
-        <div className="mt-4 flex flex-wrap gap-1.5">
+        {!prefs.targetCompanies.length && !suggestions.length && (
+          <p className="mt-4 rounded-xl border border-dashed border-line px-3.5 py-3 text-[12.5px] leading-relaxed text-muted">
+            No companies yet. Add the ones you'd love to work for below, or press <strong className="font-semibold text-ink">Suggest companies</strong> and Hermes picks some that fit your profile.
+          </p>
+        )}
+        <div className="mt-4 flex flex-wrap gap-1.5 empty:hidden">
           {prefs.targetCompanies.map(c => (
             <span key={`${c.ats}:${c.slug}`} title={c.url || undefined} className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-ink/[0.05] pr-1 pl-2.5 text-[12.5px] font-medium text-ink-2 dark:bg-white/[0.07]">
               {c.ats === 'site' && <Globe className="size-3 text-faint" />}

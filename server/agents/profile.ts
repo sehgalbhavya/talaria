@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Preferences, Profile, Seniority } from '../../shared/types.ts';
 import { askJson, finishRun, startRun } from '../lib/hermes.ts';
-import { getPreferences, getProfile, setPreferences, setProfile } from '../lib/store.ts';
+import { getPreferences, getProfile, getSettings, setPreferences, setProfile } from '../lib/store.ts';
 import { clamp, oneOf, str, strArr } from './common.ts';
 
 export async function extractResumeText(filePath: string, originalName: string): Promise<string> {
@@ -107,14 +107,25 @@ export async function buildProfileFromResume(resumeText: string, fileName?: stri
     };
     const s = raw.suggested || {};
     const current = getPreferences();
+    // During onboarding you may have answered these while Hermes was still reading: yours win.
+    const confirmed = new Set(getSettings().onboarding?.confirmedPrefs || []);
     const seniority = strArr(s.seniority, 5).map(x => x.toLowerCase()).filter((x): x is Seniority => ['intern', 'entry', 'mid', 'senior', 'lead'].includes(x));
-    const preferences = setPreferences({
+    const suggested: Partial<Preferences> = {
       roles: current.roles.length ? current.roles : strArr(s.roles, 6, 80),
       seniority: seniority.length ? seniority : current.seniority,
       locations: current.locations.length ? current.locations : strArr(s.locations, 6, 80),
       remote: oneOf(s.remote, ['remote_only', 'remote_or_hybrid', 'any', 'onsite'] as const, current.remote),
       includeKeywords: current.includeKeywords.length ? current.includeKeywords : strArr(s.includeKeywords, 8, 40),
-    });
+    };
+    // The kinds of work you picked decide the levels: internships are one, and no full-time means no job levels.
+    const kinds = current.lookingFor;
+    if (kinds?.length && suggested.seniority) {
+      let levels: Seniority[] = kinds.includes('full_time') ? suggested.seniority.filter(x => x !== 'intern') : [];
+      if (kinds.includes('internship')) levels = ['intern', ...levels];
+      suggested.seniority = levels.length ? levels : current.seniority;
+    }
+    for (const key of confirmed) delete suggested[key];
+    const preferences = setPreferences(suggested);
     // Your story is yours, not the resume's: it survives replacing the resume.
     const story = getProfile()?.story;
     if (story) profile.story = story;

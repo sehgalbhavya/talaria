@@ -104,6 +104,12 @@ app.post('/api/resume', upload.single('file'), async (req, res) => {
     }
   }
   if (!text || text.trim().length < 80) return res.status(400).json({ error: "That resume looks empty — if it's a scanned PDF, paste the text instead." });
+  // Onboarding carries on while Hermes reads; the profile and the run's outcome arrive as events.
+  if (req.query.background === '1') {
+    // A failure is recorded on the run, which onboarding shows in place.
+    buildProfileFromResume(text, fileName, latex).catch(() => {});
+    return res.json({ started: true });
+  }
   const result = await buildProfileFromResume(text, fileName, latex);
   res.json(result);
 });

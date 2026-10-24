@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { ArrowRight, Check, ChevronDown, CircleDashed, Globe, HardDrive, Loader2, MessageSquare, RefreshCw, Search, Send, ShieldCheck, FileText } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ArrowLeft, ArrowRight, Check, ChevronDown, CircleDashed, HardDrive, Loader2, MessageSquare, RefreshCw, Search, Send, ShieldCheck, FileText } from 'lucide-react';
 import type { SetupStatus } from '@shared/types';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
@@ -9,10 +10,48 @@ import { Button, CopyButton, Field, Input } from '@/components/ui';
 export function StepHeader({ kicker, title, children }: { kicker: string; title: React.ReactNode; children?: React.ReactNode }) {
   return (
     <div className="mb-8">
-      <div className="text-[12px] font-semibold tracking-[0.1em] text-gold uppercase">{kicker}</div>
-      <h2 className="mt-2 font-display text-[32px] leading-[1.05] tracking-[-0.015em] text-ink">{title}</h2>
+      {/* On wide screens the sidebar already shows where you are. */}
+      <div className="mb-2 text-[12px] font-semibold tracking-[0.1em] text-gold uppercase lg:hidden">{kicker}</div>
+      <h2 className="font-display text-[32px] leading-[1.05] tracking-[-0.015em] text-ink">{title}</h2>
       {children && <p className="mt-3 text-[15px] leading-relaxed text-muted">{children}</p>}
     </div>
+  );
+}
+
+/** Where each step's Back / Continue buttons go: one bar pinned to the bottom, so they never move. */
+export const FooterSlot = React.createContext<HTMLElement | null>(null);
+
+export function StepFooter({ back, backLabel = 'Back', children }: { back?: () => void; backLabel?: string; children: React.ReactNode }) {
+  const slot = React.useContext(FooterSlot);
+  const bar = (
+    <div className="flex items-center justify-between gap-3">
+      {back ? (
+        <Button variant="ghost" icon={<ArrowLeft className="size-4" />} onClick={back}>
+          {backLabel}
+        </Button>
+      ) : (
+        <span />
+      )}
+      <div className="flex items-center gap-2">{children}</div>
+    </div>
+  );
+  return slot ? createPortal(bar, slot) : bar;
+}
+
+export function NextButton({ children = 'Continue', ...rest }: React.ComponentProps<typeof Button>) {
+  return (
+    <Button variant="primary" size="lg" icon={<ArrowRight className="size-4" />} className="flex-row-reverse" {...rest}>
+      {children}
+    </Button>
+  );
+}
+
+/** A quiet "skip" next to the main button: there if you need it, never competing with it. */
+export function SkipLink({ onClick, title, children = 'Skip for now' }: { onClick: () => void; title?: string; children?: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} title={title} className="px-2 text-[13px] text-faint underline-offset-2 hover:text-muted hover:underline">
+      {children}
+    </button>
   );
 }
 
@@ -28,22 +67,22 @@ function Cmd({ children }: { children: string }) {
 
 // ---------------- 0. Welcome ----------------
 
-const HOW_IT_WORKS = [
-  { icon: Search, title: 'It finds jobs', body: 'Talaria searches public job boards and company career pages, then drops the good matches in your Discovered column.' },
-  { icon: MessageSquare, title: 'It tells you the truth', body: 'For each job, your AI assistant explains why you would get it, why you might not, and how to improve your odds.' },
-  { icon: FileText, title: 'It prepares the application', body: 'It asks you a few questions, then tailors your resume and writes a cover letter. You can change anything in plain words.' },
-  { icon: Send, title: 'You press the button', body: 'Nothing is ever sent to an employer until you approve it. Not once.' },
+const WHAT_WE_ASK = [
+  { icon: FileText, title: 'Your resume', body: 'Hermes reads it in the background while you carry on. You check what it found before anything else uses it.' },
+  { icon: MessageSquare, title: 'Your story', body: 'A few questions, answered in your own words. Your cover letters are written from this, so they sound like you.' },
+  { icon: Search, title: "What you're after", body: 'The roles and level you want, where and how you want to work, and your deal-breakers.' },
+  { icon: Send, title: 'Where to look', body: 'Job boards, plus any companies or careers pages you want watched. Nothing is sent to an employer until you approve it.' },
 ];
 
-export function WelcomeStep({ next }: { next: () => void }) {
+export function WelcomeStep({ kicker, next }: { kicker: string; next: () => void }) {
   return (
     <div>
-      <StepHeader kicker="Welcome" title="Let's get you set up. It takes about 10 minutes.">
-        Talaria is a job-hunt board that runs on your own computer. An AI assistant does the tedious parts, and you stay in charge. You don't need to know anything about AI.
+      <StepHeader kicker={kicker} title="First, let's get to know you.">
+        Talaria finds jobs, tells you honestly where you stand and prepares each application. It can only do that as well as it knows you, so the next 10 minutes are about you. You can change any answer later.
       </StepHeader>
 
       <ul className="space-y-3">
-        {HOW_IT_WORKS.map(({ icon: Icon, title, body }) => (
+        {WHAT_WE_ASK.map(({ icon: Icon, title, body }) => (
           <li key={title} className="flex gap-4 rounded-2xl bg-card p-4 shadow-card">
             <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-gold-soft text-gold">
               <Icon className="size-5" />
@@ -56,20 +95,22 @@ export function WelcomeStep({ next }: { next: () => void }) {
         ))}
       </ul>
 
-      <div className="mt-5 flex flex-wrap gap-x-5 gap-y-1.5 text-[12.5px] text-muted">
+      <p className="mt-5 text-[13px] leading-relaxed text-muted">
+        <strong className="font-semibold text-ink">Have ready:</strong> your resume (PDF, Word, text or LaTeX) and an AI account you already use: ChatGPT, GitHub Copilot, or an API key.
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-[12.5px] text-muted">
         <span className="inline-flex items-center gap-1.5">
-          <HardDrive className="size-3.5 text-faint" /> Your data stays on this computer
+          <HardDrive className="size-3.5 text-faint" /> Everything you tell it stays on this computer
         </span>
         <span className="inline-flex items-center gap-1.5">
           <ShieldCheck className="size-3.5 text-faint" /> You approve everything
         </span>
       </div>
 
-      <div className="mt-8 flex justify-end">
-        <Button variant="primary" size="lg" onClick={next} icon={<ArrowRight className="size-4" />} className="flex-row-reverse">
-          Let's start
-        </Button>
-      </div>
+      <StepFooter>
+        <NextButton onClick={next}>Let's start</NextButton>
+      </StepFooter>
     </div>
   );
 }
@@ -111,7 +152,7 @@ function CheckRow({ ok, pending, title, children }: { ok: boolean; pending?: boo
   );
 }
 
-export function ConnectStep({ next, back }: { next: () => void; back: () => void }) {
+export function ConnectStep({ kicker, next, back }: { kicker: string; next: () => void; back: () => void }) {
   const hermes = useApp(s => s.hermes);
   const settings = useApp(s => s.settings)!;
   const [setup, setSetup] = React.useState<SetupStatus | null>(null);
@@ -163,7 +204,7 @@ export function ConnectStep({ next, back }: { next: () => void; back: () => void
 
   return (
     <div>
-      <StepHeader kicker="Step 1 · The AI assistant" title="Connect the brain.">
+      <StepHeader kicker={kicker} title="Connect the brain.">
         Talaria uses a free program called <strong className="font-semibold text-ink">Hermes</strong> to talk to an AI. You sign in to an AI account you already have, and Hermes does the rest. Talaria never sees your password.
       </StepHeader>
 
@@ -275,22 +316,12 @@ export function ConnectStep({ next, back }: { next: () => void; back: () => void
         </Collapsible>
       </div>
 
-      <div className="mt-8 flex items-center justify-between">
-        <Button variant="ghost" onClick={back}>
-          Back
-        </Button>
-        <div className="flex items-center gap-3">
-          {!connected && <span className="text-[12.5px] text-faint">Test the connection to continue</span>}
-          <Button variant="primary" size="lg" onClick={next} disabled={!connected} icon={<ArrowRight className="size-4" />} className="flex-row-reverse">
-            Continue
-          </Button>
-        </div>
-      </div>
-      {!connected && (
-        <button type="button" onClick={next} className="mt-3 ml-auto flex items-center gap-1 text-[12px] text-faint underline-offset-2 hover:text-muted hover:underline">
-          <Globe className="size-3" /> Skip for now (nothing will work until this is connected)
-        </button>
-      )}
+      {!connected && <p className="mt-5 text-[12.5px] text-faint">Test the connection to continue. You can skip it for now, but nothing will work until it's connected.</p>}
+
+      <StepFooter back={back}>
+        {!connected && <SkipLink onClick={next} title="Nothing will work until the AI is connected" />}
+        <NextButton onClick={next} disabled={!connected} />
+      </StepFooter>
     </div>
   );
 }

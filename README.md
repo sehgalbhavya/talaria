@@ -187,13 +187,16 @@ It does the same as `Talaria.bat`: installs on first run, builds, starts the ser
 
 ### Step 6: First-time setup in Talaria
 
-The first time you open Talaria, a short guided setup walks you through everything:
+The first time you open Talaria, a guided setup gets to know you. It takes about 10 minutes, and if you close the window halfway it picks up where you left off.
 
-1. **Welcome.** A one-minute explanation of how Talaria works.
+1. **Welcome.** What Talaria will ask you and what to have ready.
 2. **Connect the AI.** Talaria checks that Hermes is installed, asks which AI account you have, and shows you the exact sign-in command. Press **Test the connection**. When it says *It works!*, continue.
-3. **Your resume.** Drag your resume in (or paste its text). Hermes reads it and builds your profile in about 30 seconds. It never invents experience you don't have.
-4. **What you want.** Confirm the roles, locations, work mode and visa needs Hermes suggests, and add anything you'd like to include or avoid.
-5. **Where to look.** Choose which job boards to search and whether **Autopilot** should search for new matches on its own every few hours.
+3. **Your resume.** Drag your resume in (or paste its text). Hermes reads it in the background while you carry on, and a note at the top of the screen tells you when it's done. It never invents experience you don't have.
+4. **Your story.** Four short questions in your own words: why you do this work, what you're proudest of, what you want next, and who you are outside work. Your cover letters are written from this. Skip any you like.
+5. **What you're after.** The roles and level you want; where and how you want to work (locations, remote, visa sponsorship, salary); and what matters to you (topics you'd love, deal-breakers, companies to skip). Hermes fills in suggestions from your resume, but never overwrites what you've chosen.
+6. **Is this you?** Check and fix what Hermes took from your resume: your details, headline, summary and skills.
+7. **Where to look.** Choose the job boards to search, and add your own sources: any company by name, or the link to its careers page. **Suggest companies** asks Hermes for ones that fit you.
+8. **Review & start.** A summary of everything, with an **Edit** link for each part, and whether **Autopilot** should search for new matches every few hours.
 
 Then press **Start the hunt**. A short tour of the board follows, and the first jobs show up in a minute or two.
 

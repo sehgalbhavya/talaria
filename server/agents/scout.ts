@@ -1,6 +1,7 @@
 import type { Job, Preferences, Profile, ScoutState, SourceId, TargetCompany } from '../../shared/types.ts';
 import { companyBoard, readPosting } from '../sources/companies.ts';
 import { phdSearch } from './phd.ts';
+import { wantsJobs } from '../../shared/track.ts';
 import * as S from '../sources/index.ts';
 import { scoutLinkedIn } from './linkedin.ts';
 import type { RawJob } from '../sources/index.ts';
@@ -344,6 +345,23 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
   const settings = getSettings();
   const maxNew = opts.maxNew ?? 20;
   const minScore = opts.minScore ?? 45;
+
+  // Only after PhDs: there are no jobs to look for, so the search is the PhD one.
+  if (!wantsJobs(prefs)) {
+    if (!prefs.phd?.enabled) throw new Error('Turn on PhD positions in Profile → Sources, or choose jobs in your preferences.');
+    setState({ running: true, phase: 'Searching for PhD positions', progress: 0.1, found: 0, added: 0, startedAt: now(), finishedAt: undefined });
+    try {
+      const r = await phdSearch({ quiet: true });
+      const msg = r.added ? `${r.added} new PhD position${r.added === 1 ? '' : 's'} added` : 'No new PhD positions this time';
+      setSettings({ autopilot: { ...getSettings().autopilot, lastScoutAt: now() } });
+      setState({ running: false, phase: undefined, progress: 1, finishedAt: now(), lastResult: msg, added: r.added });
+      toast(r.added ? 'success' : 'info', msg);
+      return { added: [] };
+    } catch (err: any) {
+      setState({ running: false, phase: undefined, finishedAt: now(), lastResult: `Search failed: ${err.message}` });
+      throw err;
+    }
+  }
 
   setState({ running: true, phase: 'Searching job boards', progress: 0.05, found: 0, added: 0, startedAt: now(), finishedAt: undefined });
   // PhD positions are searched alongside, on their own track, when you've turned them on.
