@@ -452,7 +452,7 @@ function RolesFields({ prefs, onChange }: PrefsProps) {
       <Field label="Roles you're targeting" hint="Hermes suggests these from your resume. Edit freely; press Enter to add.">
         <ChipInput value={prefs.roles} onChange={roles => onChange({ roles })} placeholder="e.g. Frontend Engineer" suggestions={['Software Engineer', 'Frontend Engineer', 'Backend Engineer', 'Full Stack Engineer', 'Data Analyst', 'ML Engineer'].filter(s => !prefs.roles.length || prefs.roles.length < 6)} />
       </Field>
-      <Field label="Seniority">
+      <Field label="Seniority" group>
         <div className="flex flex-wrap gap-1.5">
           {SENIORITY.map(s => {
             const on = prefs.seniority.includes(s.value);
@@ -480,7 +480,7 @@ function WhereFields({ prefs, onChange }: PrefsProps) {
         <Field label="Locations" hint="Cities or countries. Remote roles are always considered.">
           <ChipInput value={prefs.locations} onChange={locations => onChange({ locations })} placeholder="e.g. Berlin, Germany" />
         </Field>
-        <Field label="Work mode">
+        <Field label="Work mode" group>
           <Segmented<RemotePreference>
             value={prefs.remote}
             onChange={remote => onChange({ remote })}
@@ -495,7 +495,7 @@ function WhereFields({ prefs, onChange }: PrefsProps) {
         </Field>
       </div>
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Need visa sponsorship?">
+        <Field label="Need visa sponsorship?" group>
           <Segmented
             value={prefs.needsSponsorship == null ? 'skip' : prefs.needsSponsorship ? 'yes' : 'no'}
             onChange={v => onChange({ needsSponsorship: v === 'skip' ? null : v === 'yes' })}

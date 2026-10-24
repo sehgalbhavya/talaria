@@ -391,7 +391,7 @@ function PreferencesTab() {
       <Card className="p-6">
         <PreferencesForm prefs={prefs} onChange={p => setPrefs(x => ({ ...x, ...p }))} />
         <div className="mt-5 border-t border-line-2 pt-5">
-          <Field label="Hide postings older than" hint="Stale postings are usually filled already.">
+          <Field group label="Hide postings older than" hint="Stale postings are usually filled already.">
             <Segmented
               size="sm"
               value={String(prefs.maxAgeDays)}

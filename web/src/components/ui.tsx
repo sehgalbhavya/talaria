@@ -120,13 +120,21 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
   return <textarea ref={ref} className={cn(inputCls, 'min-h-[84px] py-2 leading-relaxed', className)} {...rest} />;
 });
 
-export function Field({ label, hint, children, className }: { label: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode; className?: string }) {
+/**
+ * A labelled form field. Pass `group` when it holds a row of buttons (pills, Segmented): a <label>
+ * makes the browser treat hovering anywhere inside it as hovering its first button.
+ */
+export function Field({ label, hint, children, className, group }: { label: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode; className?: string; group?: boolean }) {
+  const id = React.useId();
+  const Tag = group ? 'div' : 'label';
   return (
-    <label className={cn('block', className)}>
-      <span className="mb-1.5 block text-[12.5px] font-medium text-ink-2">{label}</span>
+    <Tag className={cn('block', className)} {...(group ? { role: 'group', 'aria-labelledby': id } : {})}>
+      <span id={id} className="mb-1.5 block text-[12.5px] font-medium text-ink-2">
+        {label}
+      </span>
       {children}
       {hint && <span className="mt-1.5 block text-[12px] text-muted">{hint}</span>}
-    </label>
+    </Tag>
   );
 }
 

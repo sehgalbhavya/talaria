@@ -115,7 +115,7 @@ export function SettingsView() {
                 <Field label="Writing model (optional)" hint="A stronger model just for resumes & cover letters. Leave blank to use the main model.">
                   <ModelSelect value={h.tailorModel || ''} options={['', ...providerModels]} disabled={Boolean(trying)} onChange={m => tryAndSave(h.provider, m, 'tailorModel')} />
                 </Field>
-                <Field label="Parallel tasks" hint="How many Hermes tasks may run at once.">
+                <Field group label="Parallel tasks" hint="How many Hermes tasks may run at once.">
                   <Segmented size="sm" value={String(h.concurrency)} onChange={v => save({ hermes: { ...h, concurrency: Number(v) } })} options={['1', '2', '3', '4'].map(v => ({ value: v, label: v }))} />
                 </Field>
               </div>
