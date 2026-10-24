@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { BookmarkCheck, Check, ChevronDown, FileText, Globe, Loader2, Plus, Save, Sparkles, Trash2, UploadCloud, X } from 'lucide-react';
+import { BookmarkCheck, Check, ChevronDown, FileText, Globe, GraduationCap, Loader2, Plus, Save, Sparkles, Trash2, UploadCloud, X } from 'lucide-react';
 import type { AnswerBankItem, ExperienceItem, Preferences, Profile, SourceId, TargetCompany } from '@shared/types';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
@@ -439,6 +439,39 @@ const PLATFORM: Record<TargetCompany['ats'], string> = {
 
 type Suggestion = { name: string; url: string; why: string };
 
+const PHD_FIELD_IDEAS = ['Haptics', 'XR / virtual and augmented reality', 'Automotive HMI', 'Generative UI', 'Human-computer interaction', 'Multisensory interaction', 'Human-AI interaction', 'Interaction design'];
+
+/** PhD positions: their own search, in your research fields, on the PhDs side of the board. */
+function PhdSettings({ prefs, onChange }: { prefs: Preferences; onChange: (p: Partial<Preferences>) => void }) {
+  const phd = prefs.phd || { enabled: false, fields: [], countries: [] };
+  const set = (patch: Partial<typeof phd>) => onChange({ phd: { ...phd, ...patch } });
+  return (
+    <div className="rounded-2xl bg-card p-5 shadow-card">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-1.5 text-[14px] font-semibold text-ink">
+            <GraduationCap className="size-4 text-accent" /> PhD positions
+          </div>
+          <div className="mt-0.5 max-w-xl text-[12.5px] leading-relaxed text-muted">
+            Hermes searches academic job boards (EURAXESS, Academic Positions, jobs.ac.uk, FindAPhD, Varbi) and university and lab pages for open, funded PhDs in these fields, plus close ones your background fits. They appear on the PhDs side of the board, and their applications get an academic CV and a motivation letter.
+          </div>
+        </div>
+        <Switch checked={phd.enabled} onChange={enabled => set({ enabled, fields: phd.fields.length ? phd.fields : PHD_FIELD_IDEAS.slice(0, 6) })} label="Search for PhD positions" />
+      </div>
+      {phd.enabled && (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Field label="Research fields" hint="What you'd want to research. Hermes also looks at closely related topics.">
+            <ChipInput value={phd.fields} onChange={fields => set({ fields })} placeholder="Add a field" suggestions={PHD_FIELD_IDEAS} />
+          </Field>
+          <Field label="Where" hint="Countries or cities. Leave empty for anywhere in Europe.">
+            <ChipInput value={phd.countries} onChange={countries => set({ countries })} placeholder="e.g. Sweden, Germany" suggestions={['Sweden', 'Germany', 'Netherlands', 'Denmark', 'Finland', 'Switzerland', 'United Kingdom']} />
+          </Field>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SourcesEditor({ prefs, onChange }: { prefs: Preferences; onChange: (p: Partial<Preferences>) => void }) {
   const [input, setInput] = React.useState('');
   const [adding, setAdding] = React.useState<string | null>(null);
@@ -493,6 +526,8 @@ export function SourcesEditor({ prefs, onChange }: { prefs: Preferences; onChang
           </label>
         ))}
       </div>
+
+      <PhdSettings prefs={prefs} onChange={onChange} />
 
       <div className="rounded-2xl bg-card p-5 shadow-card">
         <div className="flex items-start justify-between gap-4">

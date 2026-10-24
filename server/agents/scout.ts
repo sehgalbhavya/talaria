@@ -1,5 +1,6 @@
 import type { Job, Preferences, Profile, ScoutState, SourceId, TargetCompany } from '../../shared/types.ts';
 import { companyBoard, readPosting } from '../sources/companies.ts';
+import { phdSearch } from './phd.ts';
 import * as S from '../sources/index.ts';
 import { scoutLinkedIn } from './linkedin.ts';
 import type { RawJob } from '../sources/index.ts';
@@ -345,6 +346,8 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
   const minScore = opts.minScore ?? 45;
 
   setState({ running: true, phase: 'Searching job boards', progress: 0.05, found: 0, added: 0, startedAt: now(), finishedAt: undefined });
+  // PhD positions are searched alongside, on their own track, when you've turned them on.
+  if (prefs.phd?.enabled && settings.hermes.webSearch) phdSearch({ quiet: true }).catch(() => {});
   const h = startRun('scout', 'Scouting for new jobs');
   markRunning(h);
   const added: Job[] = [];
@@ -580,6 +583,7 @@ export function sourceLabel(s: SourceId) {
       smartrecruiters: 'SmartRecruiters',
       recruitee: 'Recruitee',
       company_site: 'the company website',
+      academic: 'an academic job board',
       hermes_web: 'Hermes web search',
       linkedin: 'LinkedIn',
       manual: 'manual entry',

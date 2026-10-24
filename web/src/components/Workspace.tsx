@@ -5,13 +5,14 @@ import * as RDialog from '@radix-ui/react-dialog';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlertTriangle, ArrowUp, Check, ChevronDown, Clock, Download, ExternalLink, FileText, History, Info, Lightbulb, MapPin, PanelLeftClose, PanelLeftOpen, PartyPopper, Pencil, RefreshCw, Send, Sparkles, Wand2, X } from 'lucide-react';
 import type { AgentQuestion, ChatMessage, Job } from '@shared/types';
+import { jobTrack } from '@shared/track';
 import { isStaleDraft } from '@shared/resume';
 import { jobActions, useApp } from '@/lib/store';
 import { closeJob, navigate } from '@/lib/router';
 import { awaitingInterview, canAutoApply, cn, fitScore, fmtDate, isWorking, pendingQuestions, timeAgo, workingStep } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Badge, Button, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, Segmented, Tooltip, inputCls } from './ui';
+import { Badge, Button, CopyButton, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, Segmented, Tooltip, inputCls } from './ui';
 import { CompanyLogo, Logo, ScoreRing } from './brand';
 import { PostingPanel } from './drawer/PostingPanel';
 import { FitPanel } from './drawer/FitPanel';
@@ -242,6 +243,17 @@ function Message({ m, job }: { m: ChatMessage; job: Job }) {
           {m.text}
           {m.changes && m.changes.length > 0 && <Changes changes={m.changes} />}
         </div>
+        {m.snippet && (
+          <div className="rounded-2xl border border-line bg-card p-3.5 shadow-card">
+            <p className="text-[13.5px] leading-relaxed whitespace-pre-wrap text-ink">{m.snippet}</p>
+            <div className="mt-2.5 flex items-center justify-between border-t border-line-2 pt-2 text-[11.5px] text-faint">
+              <span className="tabular-nums">
+                {m.snippet.length} characters · {m.snippet.trim().split(/\s+/).length} words
+              </span>
+              <CopyButton text={m.snippet} />
+            </div>
+          </div>
+        )}
         {questions.length > 0 && <QuestionsBlock job={job} questions={questions} interview={m.kind === 'interview'} />}
         <div className="pl-1 text-[10.5px] text-faint">{timeAgo(m.at)}</div>
       </div>
@@ -515,7 +527,7 @@ function DocsPane({ job }: { job: Job }) {
           onChange={setDoc}
           options={[
             { value: 'resume', label: 'Tailored' },
-            { value: 'letter', label: 'Cover letter' },
+            { value: 'letter', label: jobTrack(job) === 'phd' ? 'Motivation letter' : 'Cover letter' },
             { value: 'original', label: 'Original' },
             { value: 'answers', label: 'Answers' },
           ]}

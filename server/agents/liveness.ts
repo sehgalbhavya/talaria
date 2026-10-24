@@ -3,6 +3,8 @@
 
 import type { Job, JobStatus } from '../../shared/types.ts';
 import { listJobs, now, updateJob } from '../lib/store.ts';
+import { askJson } from '../lib/hermes.ts';
+import { renderHtml } from '../sources/jobpage.ts';
 
 type Result = { live: boolean | null; reason: string };
 /** What a check needs: a posting from the board, or one the scout just found. */
@@ -16,6 +18,20 @@ const CHECKED: JobStatus[] = ['discovered', 'preparing', 'needs_input'];
 
 const CLOSED_TEXT: RegExp[] = [
   /no longer (accepting applications|available|open|active|posted|listed)/i,
+  /no longer (possible|able) to apply/i,
+  /(can|could) no longer (be )?appl(y|ied)/i,
+  /no longer (accepting|taking|considering) (applications|applicants|candidates)/i,
+  /(application|recruitment) (period|window|process) (has |is )?(ended|closed|expired|finished|over)/i,
+  /(application )?deadline (has )?(passed|expired)/i,
+  /(this|the) (job|position|vacancy|ad|advert(isement)?|listing|opportunity) (is|has been) (no longer (active|available|open)|closed|expired|filled|unpublished|deactivated|withdrawn)/i,
+  // Swedish
+  /(det går|går det) inte längre att (söka|ansöka)/i,
+  /ansökningstiden (har )?(gått ut|löpt ut|är slut)/i,
+  /(tjänsten|annonsen|jobbet) (är|har) (inte längre (aktiv|tillgänglig)|tillsatt|avslutad|stängd)/i,
+  // German
+  /(stelle|position|anzeige|ausschreibung) (ist )?(leider )?(nicht mehr (verfügbar|aktiv|ausgeschrieben)|bereits besetzt|vergeben)/i,
+  /bewerbungs(frist|zeitraum) (ist )?(abgelaufen|beendet|vorbei)/i,
+  /(eine )?bewerbung ist (leider )?nicht mehr möglich/i,
   /(job|position|posting|role|vacancy|opening|requisition) (has been|is|was) (filled|closed|removed|expired|taken down|archived)/i,
   /(job|position|posting|page|role) (not found|doesn'?t exist|does not exist|could not be found|cannot be found|is unavailable)/i,
   /this (job|position|posting|role|vacancy) (has )?(expired|closed)/i,
@@ -90,6 +106,16 @@ async function viaHimalayas(job: Posting): Promise<Result | null> {
 /** An id-looking piece of the posting's path (digits or a uuid), used to spot redirects away from it. */
 const postingId = (path: string) => path.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d{5,}/i)?.[0];
 
+/** "Last application date: 20 October 2026" (or Swedish/German) in the page text, already passed. */
+function deadlinePast(text: string): string | null {
+  const re = /(last (application|apply) (date|day)|application deadline|apply by|closing date|deadline|sista ansökningsdag(en)?|ansök senast|bewerbungsschluss|bewerbungsfrist)\s*[:\-]?\s*([0-9]{1,4}[./ -][0-9a-zA-Z]{1,9}[./ -][0-9]{2,4}|[A-Z][a-z]+ [0-9]{1,2},? [0-9]{4})/i;
+  const m = text.match(re);
+  if (!m) return null;
+  const raw = m[6].replace(/(\d+)\.(\d+)\.(\d{4})/, '$3-$2-$1');
+  const t = Date.parse(raw);
+  return !isNaN(t) && t < Date.now() - 86_400_000 ? m[0] : null;
+}
+
 function validThroughPast(html: string): boolean {
   for (const m of html.matchAll(/"validThrough"\s*:\s*"([^"]+)"/g)) {
     const t = Date.parse(m[1]);
@@ -111,17 +137,86 @@ async function viaPage(url: string): Promise<Result> {
   const id = postingId(new URL(url).pathname + new URL(url).search);
   if (id && !(final.pathname + final.search).includes(id)) return { live: false, reason: `The link now redirects to ${final.hostname}${final.pathname === '/' ? '' : final.pathname}` };
   if (final.searchParams.get('error') === 'true') return { live: false, reason: 'The link redirects to the careers page' };
-  const html = await res.text();
+  let html = await res.text();
   if (validThroughPast(html)) return { live: false, reason: 'The posting has passed its closing date' };
-  const text = html
+  let text = pageText(html);
+  // Pages built by scripts show almost nothing to a plain fetch: open them in a hidden browser.
+  if (text.length < 1500) {
+    const rendered = await rendered1(url);
+    if (rendered) {
+      html = rendered;
+      text = pageText(rendered);
+    }
+  }
+  const closed = closedReason(html, text);
+  return closed ? { live: false, reason: closed } : { live: true, reason: 'The posting page is up' };
+}
+
+// Hidden-browser renders are heavy: at most two at a time.
+let rendering = 0;
+const waiting: (() => void)[] = [];
+async function rendered1(url: string): Promise<string> {
+  if (rendering >= 2) await new Promise<void>(r => waiting.push(r));
+  rendering++;
+  try {
+    return await renderHtml(url).catch(() => '');
+  } finally {
+    rendering--;
+    waiting.shift()?.();
+  }
+}
+
+function pageText(html: string) {
+  return html
     .replace(/<(script|style|noscript|svg)\b[\s\S]*?<\/\1>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
     .replace(/\s+/g, ' ');
+}
+
+/** Why a page reads as closed, or null. */
+function closedReason(html: string, text: string): string | null {
+  if (validThroughPast(html)) return 'The posting has passed its closing date';
   for (const re of CLOSED_TEXT) {
     const m = text.match(re);
-    if (m) return { live: false, reason: `The page says “${m[0].trim()}”` };
+    if (m) return `The page says “${m[0].trim()}”`;
   }
-  return { live: true, reason: 'The posting page is up' };
+  const d = deadlinePast(text);
+  return d ? `The application deadline has passed (“${d.trim()}”)` : null;
+}
+
+/**
+ * The careful check before you apply: the pattern check, then Hermes reads the posting page itself,
+ * so unusual wording ("We have found our candidate", a greyed-out apply button) isn't missed.
+ */
+export async function checkBeforeApply(job: Job): Promise<Result> {
+  const quick = await checkJob(job);
+  if (quick.live === false) return quick;
+  const url = job.applyUrl || job.url;
+  if (!url) return quick;
+  let text = '';
+  try {
+    const res = await get(url);
+    text = res.ok ? pageText(await res.text()) : '';
+    if (text.length < 1500) text = pageText(await rendered1(url));
+  } catch {}
+  if (text.length < 200) return quick;
+  try {
+    const r = await askJson<any>({
+      prompt: `Here is the text of a job posting page (${url}). Is it still possible to apply for this job?
+Answer "closed" only if the page clearly says applications are closed, the position is filled or expired, the deadline has passed, or the job no longer exists. Answer "open" if it looks like a normal live posting. Otherwise "unclear".
+
+Return ONLY JSON: {"verdict": "open"|"closed"|"unclear", "quote": "the exact sentence from the page that shows it, or empty"}
+
+PAGE TEXT
+${text.slice(0, 9000)}`,
+      priority: 2,
+      timeoutSec: 120,
+    });
+    if (r?.verdict === 'closed') return { live: false, reason: r.quote ? `The page says “${String(r.quote).slice(0, 160)}”` : 'Hermes read the page: applications are closed' };
+    if (r?.verdict === 'open') return { live: true, reason: 'Hermes read the page: it is still open' };
+  } catch {}
+  return quick;
 }
 
 export async function checkJob(job: Posting): Promise<Result> {

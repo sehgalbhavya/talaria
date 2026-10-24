@@ -16,14 +16,15 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AnimatePresence, motion } from 'motion/react';
-import { ArrowDownWideNarrow, Archive, Clock, Mail, Plus, Radar, RefreshCw, Search, Sparkles, Star, Trash2, Wifi } from 'lucide-react';
+import { ArrowDownWideNarrow, Archive, Clock, GraduationCap, Mail, Plus, Radar, RefreshCw, Search, Sparkles, Star, Trash2, Wifi } from 'lucide-react';
 import { BOARD_COLUMNS, type Job, type JobStatus } from '@shared/types';
+import { jobTrack, type Track } from '@shared/track';
 import { isStaleDraft, resumeHash } from '@shared/resume';
 import { moveJob, startScout, useApp } from '@/lib/store';
 import { navigate, openJob } from '@/lib/router';
 import { cn, fitScore, greeting, isWorking, pendingQuestions, STATUS_META, timeAgo } from '@/lib/utils';
 import { JobCard } from '@/components/JobCard';
-import { Button, Menu, MenuContent, MenuItem, MenuTrigger, Tooltip } from '@/components/ui';
+import { Button, Menu, MenuContent, MenuItem, MenuTrigger, Segmented, Tooltip } from '@/components/ui';
 import { Logo } from '@/components/brand';
 import { AddJobDialog } from '@/components/AddJobDialog';
 import { api } from '@/lib/api';
@@ -49,6 +50,21 @@ export function Board() {
   const [query, setQuery] = React.useState('');
   const [remoteOnly, setRemoteOnly] = React.useState(false);
   const [starredOnly, setStarredOnly] = React.useState(false);
+  // Full-time roles and PhD positions share the board; this switch shows one or both.
+  const [track, setTrack] = React.useState<'all' | Track>(() => {
+    try {
+      return (localStorage.getItem('talaria-track') as 'all' | Track) || 'all';
+    } catch {
+      return 'all';
+    }
+  });
+  const pickTrack = (t: 'all' | Track) => {
+    setTrack(t);
+    try {
+      localStorage.setItem('talaria-track', t);
+    } catch {}
+  };
+  const phdRunning = useApp(s => s.runs.some(r => r.title === 'PhD search' && (r.status === 'running' || r.status === 'queued')));
   const [sort, setSort] = React.useState<Sort>(() => (localStorage.getItem('talaria-sort') as Sort) || 'fit');
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [addOpen, setAddOpen] = React.useState(false);
@@ -82,10 +98,12 @@ export function Board() {
       if (j.status === 'archived') return false;
       if (remoteOnly && j.remote !== 'remote') return false;
       if (starredOnly && !j.starred) return false;
+      if (track !== 'all' && jobTrack(j) !== track) return false;
       if (q && !`${j.title} ${j.company} ${j.location} ${j.tags.join(' ')}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [jobs, query, remoteOnly, starredOnly]);
+  }, [jobs, query, remoteOnly, starredOnly, track]);
+  const phdCount = React.useMemo(() => jobs.filter(j => j.status !== 'archived' && jobTrack(j) === 'phd').length, [jobs]);
 
   const columns = React.useMemo(() => {
     const by: Record<string, Job[]> = {};
@@ -170,6 +188,16 @@ export function Board() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Segmented
+            size="sm"
+            value={track}
+            onChange={pickTrack}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'job', label: 'Jobs' },
+              { value: 'phd', label: `PhDs${phdCount ? ` · ${phdCount}` : ''}` },
+            ]}
+          />
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-faint" />
             <input
@@ -196,9 +224,20 @@ export function Board() {
           <Button variant="secondary" icon={<Plus className="size-4" />} onClick={() => setAddOpen(true)}>
             Add job
           </Button>
-          <Button variant="primary" icon={<Sparkles className="size-4 text-gold" />} onClick={startScout} disabled={scout.running}>
-            {scout.running ? 'Searching…' : 'Find jobs'}
-          </Button>
+          {track === 'phd' ? (
+            <Button
+              variant="primary"
+              icon={<GraduationCap className="size-4 text-gold" />}
+              loading={phdRunning}
+              onClick={() => api.post('/api/scout/phd').then(() => toast('Hermes is searching for PhD positions. This takes a few minutes.', { icon: <GraduationCap className="size-4 text-gold" /> }))}
+            >
+              {phdRunning ? 'Searching PhDs…' : 'Find PhDs'}
+            </Button>
+          ) : (
+            <Button variant="primary" icon={<Sparkles className="size-4 text-gold" />} onClick={startScout} disabled={scout.running}>
+              {scout.running ? 'Searching…' : 'Find jobs'}
+            </Button>
+          )}
         </div>
       </header>
 

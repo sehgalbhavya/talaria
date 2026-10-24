@@ -11,7 +11,7 @@ import { buildProfileFromResume, extractResumeText } from './agents/profile.ts';
 import { filterAndRank, getScoutState, runScout } from './agents/scout.ts';
 import { analyzeJob, answerQuestions, applyGapNotes, chatWithHermes, coverage, resumeText as resumePlainText, markApplied, moveJob, pauseJob, prepareApplication, refreshStaleDrafts, reorderColumn, restoreVersion, resumeJob, reviseCoverLetter, setGapNote, startDrafting } from './agents/pipeline.ts';
 import { followUpOnDiscoveries, startAutopilot } from './agents/autopilot.ts';
-import { checkLiveness } from './agents/liveness.ts';
+import { checkBeforeApply, checkLiveness } from './agents/liveness.ts';
 import { generateReport } from './agents/report.ts';
 import { coverLetterPdf, resumePdf } from './lib/resumePdf.tsx';
 import { hydrateFromUrl, verifyBoard } from './sources/index.ts';
@@ -20,6 +20,7 @@ import { cleanHtml, guessRemote, htmlToText, textToHtml } from './lib/text.ts';
 import { mountMcp } from './mcp.ts';
 import { applyTarget, autoApply } from './agents/applier.ts';
 import { resolveCompany, suggestCompanies } from './agents/companyFinder.ts';
+import { phdSearch, phdSearchRunning } from './agents/phd.ts';
 import { connectLinkedIn, disconnectLinkedIn } from './agents/linkedin.ts';
 import { checkMail, connectGmail, disconnectGmail, startMailWatch } from './agents/mail.ts';
 import { connectGemini, disconnectGemini, transcribeWav, vocabulary } from './lib/voice.ts';
@@ -176,6 +177,13 @@ app.post('/api/scout', (req, res) => {
   runScout({ maxNew: req.body?.maxNew })
     .then(() => followUpOnDiscoveries())
     .catch(err => toast('error', `Search failed: ${err.message}`));
+  res.json({ started: true });
+});
+
+app.post('/api/scout/phd', (_req, res) => {
+  if (!store.getProfile()) return res.status(400).json({ error: 'Add your resume first.' });
+  if (phdSearchRunning()) return res.status(409).json({ error: 'A PhD search is already running.' });
+  phdSearch().catch(err => toast('error', `PhD search failed: ${err.message}`));
   res.json({ started: true });
 });
 
@@ -430,6 +438,12 @@ app.post('/api/jobs/:id/finalize', async (req, res) => {
   if (!j?.packet) return job404(res);
   const open = j.questions.filter(q => q.required && !q.answer?.trim()).length;
   if (open) return res.status(400).json({ error: `Answer the ${open} open question${open > 1 ? 's' : ''} first.` });
+  // One careful look at the posting first, so you never land on a closed form.
+  if (!req.body?.skipLiveCheck) {
+    const live = await checkBeforeApply(j);
+    store.updateJob(j.id, x => void (x.liveCheck = { at: store.now(), ...live }), live.live === false ? { at: store.now(), text: `Posting closed: ${live.reason}`, kind: 'agent' } : undefined);
+    if (live.live === false) return res.status(409).json({ error: `${j.company} has closed this posting. ${live.reason}.`, closed: true, reason: live.reason });
+  }
   store.updateJob(j.id, x => (x.packet!.approvedAt = store.now()), { at: store.now(), text: 'You finalized the application', kind: 'user' });
   if (!store.getSettings().apply.autoSubmit || !applyTarget(j)) return res.json({ mode: 'kit' });
   const ready = await playwrightReady();
