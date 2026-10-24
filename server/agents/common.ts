@@ -1,5 +1,6 @@
 import type { Job, Preferences, Profile } from '../../shared/types.ts';
 import { truncate } from '../lib/text.ts';
+import { jobTrack } from '../../shared/track.ts';
 
 export const RULES_NO_FABRICATION = `Hard rules:
 - Never invent employers, job titles, dates, degrees, certifications, metrics or skills the candidate does not have.
@@ -67,12 +68,14 @@ export function preferencesBrief(prefs: Preferences): string {
 
 export function jobBrief(job: Job, maxDesc = 9000): string {
   return [
+    jobTrack(job) === 'phd' ? 'POSITION TYPE: PhD / doctoral research position (an academic application, not a regular job)' : '',
     `Title: ${job.title}`,
     `Company: ${job.company}`,
     `Location: ${job.location} (${job.remote})`,
     job.employmentType ? `Type: ${job.employmentType}` : '',
     job.salary ? `Salary: ${job.salary}` : '',
     job.postedAt ? `Posted: ${job.postedAt.slice(0, 10)}` : '',
+    job.deadline ? `Application deadline: ${job.deadline}` : '',
     '',
     'Description:',
     truncate(job.descriptionText || '(no description available)', maxDesc),

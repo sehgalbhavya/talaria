@@ -2,6 +2,7 @@ import * as React from 'react';
 import { AlertTriangle, ArrowRight, Check, CircleHelp, Clock, Mail, MapPin, Pause, Play, Sparkles, Star, Unlink, X } from 'lucide-react';
 import type { ArchiveReason, Job } from '@shared/types';
 import { isStaleDraft, resumeHash } from '@shared/resume';
+import { jobTrack } from '@shared/track';
 import { awaitingInterview, cn, fitScore, fmtDate, isWorking, pendingQuestions, SOURCE_LABEL, timeAgo, workingStep } from '@/lib/utils';
 import { CompanyLogo, ScoreRing } from './brand';
 import { jobActions, moveJob, useApp } from '@/lib/store';
@@ -54,6 +55,7 @@ export const JobCard = React.memo(function JobCard({ job, overlay, dragging }: {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[12px] text-muted">
             <span className="truncate font-medium text-ink-2">{job.company}</span>
+            {jobTrack(job) === 'phd' && <span className="shrink-0 rounded bg-accent-soft px-1.5 py-px text-[10.5px] font-semibold text-accent">PhD</span>}
             {job.starred && <Star className="size-3 shrink-0 fill-gold text-gold" />}
           </div>
           <div className="mt-0.5 line-clamp-2 text-[14px] leading-[1.3] font-semibold tracking-[-0.005em] text-ink">{job.title}</div>
@@ -68,6 +70,7 @@ export const JobCard = React.memo(function JobCard({ job, overlay, dragging }: {
         </span>
         {remote && job.location.toLowerCase().indexOf(remote.toLowerCase()) === -1 && <span className="font-medium text-ink-2">{remote}</span>}
         {job.salary && <span className="font-medium text-ink-2 tabular-nums">{job.salary}</span>}
+        {job.deadline && <span className={cn('font-medium tabular-nums', Date.parse(job.deadline) - Date.now() < 7 * 86_400_000 ? 'text-warn' : 'text-ink-2')}>Apply by {fmtDate(job.deadline)}</span>}
         {stale && <span title="Tailored from your previous resume" className="rounded-full bg-gold-soft px-1.5 py-px text-[11px] font-medium text-gold">Old resume</span>}
       </div>
 

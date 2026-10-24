@@ -35,6 +35,7 @@ export type SourceId =
   | 'smartrecruiters'
   | 'recruitee'
   | 'company_site'
+  | 'academic'
   | 'hermes_web'
   | 'linkedin'
   | 'manual';
@@ -123,6 +124,7 @@ export interface Preferences {
   targetCompanies: TargetCompany[];
   sources: Partial<Record<SourceId, boolean>>;
   maxAgeDays: number;
+  phd?: { enabled: boolean; fields: string[]; countries: string[] }; // PhD positions: research fields and where
 }
 
 export interface AnswerBankItem {
@@ -208,6 +210,7 @@ export interface ChatMessage {
   kind?: 'interview' | 'questions' | 'draft' | 'revision' | 'reply' | 'status' | 'error';
   questionIds?: string[];
   changes?: { what: string; why: string }[];
+  snippet?: string; // a piece of text Hermes wrote on request (a form answer, a pitch), shown with a copy button
 }
 
 export type MailKind = 'rejection' | 'interview' | 'next_step' | 'offer' | 'received' | 'other';
@@ -274,6 +277,8 @@ export interface Job {
   location: string;
   remote: RemoteMode;
   employmentType?: string;
+  track?: 'job' | 'phd'; // full-time role or PhD position (see shared/track.ts)
+  deadline?: string; // application deadline, when the posting gives one
   seniority?: string;
   salary?: string;
   postedAt?: string;

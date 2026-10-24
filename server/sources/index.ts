@@ -16,6 +16,8 @@ export interface RawJob {
   location: string;
   remote: RemoteMode;
   employmentType?: string;
+  track?: 'job' | 'phd';
+  deadline?: string;
   seniority?: string;
   salary?: string;
   postedAt?: string;

@@ -70,6 +70,7 @@ export const SOURCE_LABEL: Record<SourceId, string> = {
   smartrecruiters: 'SmartRecruiters',
   recruitee: 'Recruitee',
   company_site: 'Company website',
+  academic: 'Academic job boards',
   hermes_web: 'Hermes web',
   linkedin: 'LinkedIn',
   manual: 'Added by you',

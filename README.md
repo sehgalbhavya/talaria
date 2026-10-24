@@ -210,6 +210,16 @@ Then press **Start the hunt**. A short tour of the board follows, and the first 
 4. **Press Finalize & submit** when you're happy. Talaria opens the company's form in its own browser window, fills every field, attaches your files and submits. It saves a screenshot of every submission in `data/applications/`.
 5. **Track replies.** Move cards to Interviewing or Offer, or let the Gmail connection do it.
 
+### PhD positions
+
+Talaria can look for funded PhD positions alongside jobs, on their own side of the board.
+
+1. Turn on **Profile → Sources → PhD positions** and list your research fields (for example *haptics*, *XR*, *automotive HMI*, *generative UI*). Optionally add countries; empty means anywhere in Europe.
+2. Switch the board to **PhDs** and press **Find PhDs**. Hermes searches academic job boards (EURAXESS, Academic Positions, jobs.ac.uk, FindAPhD, Varbi) and university and lab pages, one focused search per pair of fields. Closed positions and duplicates are skipped. PhDs are also searched with every normal job search while this is on.
+3. PhD cards carry a **PhD** tag and their application deadline. Hermes judges them on research fit, asks you research questions (what excites you in the project, an idea you'd bring), builds an academic CV that leads with your research work, and writes a **motivation letter** instead of a cover letter.
+
+Use **All / Jobs / PhDs** at the top of the board to see one kind or both.
+
 **Keyboard shortcuts:** `Ctrl K` opens the command palette, `n` adds a job from a link you found, `/` filters the board, `Esc` closes a panel.
 
 ### Safety rules that always hold

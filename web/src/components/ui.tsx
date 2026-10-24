@@ -120,21 +120,22 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
   return <textarea ref={ref} className={cn(inputCls, 'min-h-[84px] py-2 leading-relaxed', className)} {...rest} />;
 });
 
-/**
- * A labelled form field. Pass `group` when it holds a row of buttons (pills, Segmented): a <label>
- * makes the browser treat hovering anywhere inside it as hovering its first button.
- */
-export function Field({ label, hint, children, className, group }: { label: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode; className?: string; group?: boolean }) {
-  const id = React.useId();
-  const Tag = group ? 'div' : 'label';
+export function Field({ label, hint, children, className }: { label: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode; className?: string }) {
+  // Not a wrapping <label>: a label forwards clicks to its first labelable descendant,
+  // which for chip inputs is a pill's remove button. Associate by id instead.
+  const autoId = React.useId();
+  let id: string | undefined;
+  let control = children;
+  if (React.isValidElement<{ id?: string }>(children) && (children.type === Input || children.type === Textarea || children.type === 'input' || children.type === 'textarea' || children.type === 'select')) {
+    id = children.props.id ?? autoId;
+    control = children.props.id ? children : React.cloneElement(children, { id });
+  }
   return (
-    <Tag className={cn('block', className)} {...(group ? { role: 'group', 'aria-labelledby': id } : {})}>
-      <span id={id} className="mb-1.5 block text-[12.5px] font-medium text-ink-2">
-        {label}
-      </span>
-      {children}
+    <div className={cn('block', className)}>
+      <label htmlFor={id} className="mb-1.5 block text-[12.5px] font-medium text-ink-2">{label}</label>
+      {control}
       {hint && <span className="mt-1.5 block text-[12px] text-muted">{hint}</span>}
-    </Tag>
+    </div>
   );
 }
 

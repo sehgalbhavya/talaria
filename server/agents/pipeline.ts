@@ -91,7 +91,8 @@ Return ONLY a JSON object:
   "mustHaves": [{"requirement": string, "met": "yes"|"partial"|"no", "note": string}], // the 4–8 most important requirements in the posting
   "keywords": [string]      // 8–15 ATS keywords from the posting (exact wording): skills, tools, technologies and methods a candidate can HAVE (e.g. "Figma", "user research", "design systems", "prototyping"). NOT product features or business terms (e.g. "subscription tiers", "in-app discovery"), job titles, program names, seniority words or company values.
 }
-Keep every string tight (≤ 30 words). ${RULES_NO_FABRICATION}`;
+Keep every string tight (≤ 30 words). ${RULES_NO_FABRICATION}
+If the JOB is a PhD position (see POSITION TYPE): judge it as a doctoral application. Weigh research fit with the project and group, research experience (thesis, research assistant work, user studies, publications), whether they meet the degree, skill and language requirements, and eligibility. "improve" can include contacting the supervisor, reading the group's recent papers, or drafting a short research idea.`;
 
 function normAnalysis(raw: any, model: string): Analysis {
   return {
@@ -184,6 +185,7 @@ Return ONLY a JSON object:
 Resume rules:
 - Keep every employer, title and date exactly as in the profile. Reorder and rewrite bullets to foreground what this job values; lead with impact; mirror the posting's keywords where they are TRUE.
 - Never use em dashes (—) anywhere in the resume; use commas, colons or separate clauses.
+- If the JOB is a PhD position (see POSITION TYPE), make it an academic CV: the summary becomes a research profile naming their research interests and how they fit this project; lead each role with its research side (studies, methods, prototypes, findings, the thesis); industry roles stay but are framed by research skills.
 - Keep EVERY role from the profile with the same number of bullets as the original (never more than 4; one extra only if the candidate's notes add a new true point). Start from the original points and reword them toward this job; you may swap a weak point for another true one. No point may repeat anywhere in the resume. Two pages is fine. Summary 40–75 words.
 - ${RULES_NO_FABRICATION.replace(/\n/g, ' ')}
 
@@ -448,6 +450,7 @@ Rules:
 2. Bullets per role: return the SAME number of bullets as the original role (never more than 4). Only add one extra bullet when the candidate's notes give a genuinely new, true point for that role. Never pad with generic statements.
 3. Start from the original points: keep each point's substance and specifics, and reword it to speak this job's language, leading with what the job cares about. You may swap a weak or irrelevant point for a different true point (from the notes, or another detail of the same role).
 4. No repetition anywhere: each achievement appears once in the whole resume — including the summary vs. the bullets (the summary frames the story, it doesn't restate a bullet). Never restate a point in different words, never merge two originals into one long bullet, never repeat a bullet from another role.
+4b. PhD positions (see POSITION TYPE in the JOB): the summary is a research profile (research interests, why this project), and bullets lead with the research side of the work: studies run, methods, prototypes, findings.
 5. Cohesion: the summary tells the story (who the candidate is and why they fit this role); the bullets prove it. Order bullets within each role by relevance to this job.
 6. Summary: 2–3 sentences, 40–70 words (never under 35), concrete and specific to this job. It may open with \\textbf{...} for the title like the original. No filler or clichés (e.g. "portfolio available on request", "high-delivery", "robust", "proven record", "passionate", "results-driven").
 7. Skills: keep each line and its theme, and keep every line FULL: 6 to 10 items (a line that started shorter keeps at least its original count). Put the skills this job values first. Swap out only what's clearly irrelevant, and fill the space with other relevant skills the candidate's work shows: tools, methods and technologies named in their experience and project bullets, notes or answers. Never drop a skill the posting asks for that the candidate has, and never add one their resume, notes or answers don't show. Comma-separated.
@@ -626,6 +629,7 @@ Ask 3 to 6 questions, most valuable first. Good questions:
 - a missing specific that would make a key bullet concrete: a number, scale, tool or outcome;
 - for the cover letter, which tells their story rather than their resume: unless THEIR STORY below already answers it, ask about their genuine personal connection to this company or what it makes (do they use it, care about the problem, have a moment that ties them to it?), and something from their life outside work that shows why this role fits who they are;
 - anything a real application form for this job will need that isn't known: work authorisation or visa sponsorship for the job's country, salary expectation, earliest start date, relocation.
+If the JOB is a PhD position (see POSITION TYPE), ask about research instead of job logistics: which part of the project excites them and why, a research question or idea they'd bring, research experience the resume doesn't show (studies they ran, methods, papers, demos), and whether they've been in touch with the supervisor.
 Each question must be answerable in under a minute. Never ask what the resume already says. Never ask about age, gender, ethnicity, health or other personal characteristics.
 
 Return ONLY JSON:
@@ -724,6 +728,8 @@ At most ONE short real story or example, ideally with what came of it, chosen to
 Truth: use ONLY facts from their story, their answers, their notes and the resume. Never invent hobbies, experiences, feelings, places or a personal connection to the company. If the personal material is thin, write a shorter, honest letter built on what's there rather than making anything up.
 
 Style: warm, specific, natural first person; 200 to 300 words; 3 to 4 paragraphs; plain text with a blank line between paragraphs. Greeting "Dear ${o.company} team," unless a person is named in the posting. Sign off with "${o.name}". No em dashes, no clichés ("passionate", "thrilled", "excited to apply", "dynamic", "fast-paced", "leverage", "synergy", "proven track record").
+
+If the JOB is a PhD position (see POSITION TYPE), write a MOTIVATION LETTER instead, which overrides the length and greeting above: why this research topic and group matter to them personally; the research experience that prepared them, told as a story (their thesis, research assistant work, studies they ran); what they would want to investigate or build in this project; and why a PhD, now. 350 to 500 words, academic but personal. Greet the named supervisor ("Dear Professor <surname>,") if the posting names one, otherwise "Dear selection committee,".
 
 Return ONLY JSON: {"coverLetter": string}`;
 
@@ -830,20 +836,30 @@ ${o.history || '(none)'}
 THE CANDIDATE JUST SAID
 """${o.message}"""
 
-Decide what to do:
+Decide what to do. Do the SMALLEST thing that answers what they asked:
+- "write": they want a piece of text written: an answer to an application-form question (often pasted as-is, e.g. "Pitch yourself" or "Why do you want to work here?"), a pitch, a short bio, a message to a recruiter or supervisor, a LinkedIn note. Put ONLY that text in "text", ready to paste, in their voice and true to their resume, story and answers. Respect any length limit exactly (characters or words). Put the form question it answers in "question". This never changes the resume or the cover letter.
 - "revise": they want a change to the resume and/or cover letter and you have what you need. Write a precise brief for the writer in "instructions" (what to change and where, plus any facts they just gave you) and set "target".
 - "draft": there is no draft yet and they want you to go ahead, or they gave you enough to start.
 - "ask": you need a fact or a preference to do it well, or the request is ambiguous in a way that changes the result. Ask 1 to 3 short questions instead of guessing.
-- "none": a question or comment that only needs a reply (e.g. "why did you drop X?", "what's my weakest point here?", "how should I address that?"). Answer it, and if a change would help, offer it in one sentence and let them say yes. Never revise in response to a question: only revise when they ask you to change something.
+- "none": a question or comment that only needs a reply (e.g. "why did you drop X?", "what's my weakest point here?", "how should I address that?"). Answer it, and if a change would help, offer it in one sentence and let them say yes. Never revise in response to a question: only revise when they explicitly ask to change the resume or the cover letter. When unsure between "write" or "none" and "revise", don't revise.
 
 Return ONLY JSON:
-{"reply": string, "action": "revise"|"draft"|"ask"|"none", "target": "resume"|"cover"|"both", "instructions": string, "questions": [{"question": string, "why": string, "kind": "text"|"longtext"|"choice"|"yesno"|"number", "options": [string], "suggested": string, "reusable": boolean}]}
-"reply": 1 to 4 sentences, first person, plain and specific: say what you'll do, or answer honestly. No em dashes. Never promise to add experience they haven't described.`;
+{"reply": string, "action": "write"|"revise"|"draft"|"ask"|"none", "text": string, "question": string, "target": "resume"|"cover"|"both", "instructions": string, "questions": [{"question": string, "why": string, "kind": "text"|"longtext"|"choice"|"yesno"|"number", "options": [string], "suggested": string, "reusable": boolean}]}
+"reply": 1 to 4 sentences, first person, plain and specific: say what you'll do, or answer honestly (for "write", one short line introducing the text).
+"text": only for "write": the finished text and nothing else, no em dashes. No em dashes. Never promise to add experience they haven't described.`;
 
 function draftForPrompt(job: Job) {
   if (!job.packet) return '(no draft yet: you interviewed the candidate first)';
   return `RESUME\n${resumeForPrompt(job.packet.resume)}\n\nCOVER LETTER\n${job.packet.coverLetter}`.slice(0, 9000);
 }
+
+/** "in 140 characters", "max 200 words", "(500 characters)" in what you asked. */
+function lengthLimit(text: string): { n: number; unit: 'characters' | 'words' } | null {
+  const m = text.match(/(\d{2,5})\s*(characters?|chars?|tecken|zeichen|words?|ord|wörter)/i);
+  if (!m) return null;
+  return { n: parseInt(m[1], 10), unit: /word|ord|wört/i.test(m[2]) ? 'words' : 'characters' };
+}
+const measure = (text: string, unit: 'characters' | 'words') => (unit === 'words' ? text.trim().split(/\s+/).length : text.length);
 
 async function waitForTailor(id: string) {
   await (inflight.get(`tailor:${id}`) as Promise<unknown> | undefined)?.catch(() => {});
@@ -880,7 +896,20 @@ export async function chatWithHermes(id: string, text: string) {
       timeoutSec: 180,
       onStart: () => setWork(id, 'chat', { state: 'running', step: 'Hermes is thinking' }),
     });
-    const action = oneOf(raw?.action, ['revise', 'draft', 'ask', 'none'] as const, 'none');
+    const action = oneOf(raw?.action, ['write', 'revise', 'draft', 'ask', 'none'] as const, 'none');
+    // "Write me X": just that text, within any limit you set; the resume and letter stay as they are.
+    let snippet = action === 'write' ? noEmDash(str(raw?.text, 4000)) : '';
+    const limit = lengthLimit(message);
+    if (snippet && limit && measure(snippet, limit.unit) > limit.n) {
+      const again = await askJson<any>({
+        prompt: `Shorten this to at most ${limit.n} ${limit.unit} (it is ${measure(snippet, limit.unit)} now), keeping its meaning, voice and strongest point. Return ONLY JSON: {"text": string}\n\n${snippet}`,
+        handle: h,
+        priority: 2,
+        timeoutSec: 90,
+      }).catch(() => null);
+      const shorter = noEmDash(str(again?.text, 4000));
+      if (shorter && measure(shorter, limit.unit) <= limit.n) snippet = shorter;
+    }
     const target = oneOf(raw?.target, ['resume', 'cover', 'both'] as const, 'both');
     const questions = action === 'ask' ? normQuestions(raw?.questions, getJob(id)?.packet ? 'draft' : 'interview').slice(0, 3).map(q => ({ ...q, required: false })) : [];
     const instructions = str(raw?.instructions, 1500) || message;
@@ -889,9 +918,15 @@ export async function chatWithHermes(id: string, text: string) {
       pushChat(j, {
         from: 'hermes',
         kind: questions.length ? 'questions' : 'reply',
-        text: noEmDash(str(raw?.reply, 1500)) || (action === 'revise' ? 'On it.' : 'Okay.'),
+        text: noEmDash(str(raw?.reply, 1500)) || (action === 'revise' ? 'On it.' : snippet ? 'Here you go:' : 'Okay.'),
         questionIds: questions.length ? questions.map(q => q.id) : undefined,
+        snippet: snippet || undefined,
       });
+      // Kept with the application, under Form answers, so the Apply kit has it too.
+      if (snippet && j.packet) {
+        const q = str(raw?.question, 300) || message.split('\n')[0].slice(0, 300);
+        j.packet.answers = [...j.packet.answers.filter(a => a.question.toLowerCase() !== q.toLowerCase()), { question: q, answer: snippet }];
+      }
       delete j.work.chat;
     });
     finishRun(h, true, action);
