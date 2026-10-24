@@ -71,7 +71,7 @@ const READING_LINES = ['Reading every line', 'Pulling out your experience', 'Cat
  * Pinned to the top of each screen while Hermes reads your resume, and the place it tells you how
  * that went. It sits in the page rather than in a corner toast, so it never covers a button.
  */
-function ReadingBanner({ reading, onRetry }: { reading: Reading; onRetry: () => void }) {
+function ReadingBanner({ reading, onRetry, invite }: { reading: Reading; onRetry: () => void; invite?: string }) {
   const { state, run } = reading;
   const elapsed = useElapsed(run?.startedAt, state === 'reading');
   const [justDone, setJustDone] = React.useState(false);
@@ -112,7 +112,13 @@ function ReadingBanner({ reading, onRetry }: { reading: Reading; onRetry: () => 
             <span className={cn('grid size-5 shrink-0 place-items-center rounded-full', mode === 'reading' && 'bg-gold-soft text-gold', mode === 'done' && 'bg-ok-soft text-ok', mode === 'error' && 'bg-bad-soft text-bad')}>
               {mode === 'reading' ? <FileText className="size-3 animate-pulse" /> : mode === 'done' ? <Check className="size-3" strokeWidth={3} /> : <RefreshCw className="size-3" />}
             </span>
-            {mode === 'reading' && (
+            {mode === 'reading' && invite && (
+              <>
+                <span className="truncate font-medium text-ink">{invite}</span>
+                <span className="shrink-0 text-faint tabular-nums">{elapsed}s</span>
+              </>
+            )}
+            {mode === 'reading' && !invite && (
               <>
                 <span className="font-medium text-ink">Hermes is reading your resume</span>
                 <AnimatePresence mode="wait" initial={false}>
@@ -216,7 +222,7 @@ export function Onboarding() {
 
       <main ref={scroller} className="flex min-h-full flex-col px-6 py-12 lg:overflow-y-auto">
         <div className="mx-auto w-full max-w-[620px] lg:my-auto">
-          {screen !== 'resume' && screen !== 'you' && <ReadingBanner reading={reading} onRetry={() => go('resume')} />}
+          {screen !== 'resume' && screen !== 'you' && <ReadingBanner reading={reading} onRetry={() => go('resume')} invite={screen === 'story' ? 'While Hermes reads your resume, tell us your story.' : undefined} />}
           <AnimatePresence mode="wait">
             <motion.div key={screen} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
               {screen === 'welcome' && <WelcomeStep kicker={nav.kicker} next={nav.next} />}
@@ -417,8 +423,12 @@ function StoryStep({ kicker, next, back }: Nav) {
       </div>
 
       <Footer back={() => save(back)}>
-        <span className="text-[12.5px] text-faint">{filled} of {STORY_QUESTIONS.length} answered</span>
-        <NextButton onClick={() => save(next)}>{filled ? 'Continue' : 'Skip for now'}</NextButton>
+        <button type="button" onClick={() => save(next)} className="px-2 text-[13px] text-faint underline-offset-2 hover:text-muted hover:underline">
+          Skip for now
+        </button>
+        <NextButton disabled={filled < STORY_QUESTIONS.length} title={filled < STORY_QUESTIONS.length ? `${filled} of ${STORY_QUESTIONS.length} answered` : undefined} onClick={() => save(next)}>
+          Next
+        </NextButton>
       </Footer>
     </div>
   );
