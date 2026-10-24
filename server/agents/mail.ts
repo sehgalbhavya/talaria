@@ -122,7 +122,26 @@ ${mails.map((m, i) => `[e${i + 1}] From: ${m.from} | Date: ${m.at.slice(0, 10)} 
 Return ONLY JSON: {"emails": [{"id": "e1", "about": boolean, "kind": "rejection"|"interview"|"next_step"|"offer"|"received"|"other", "summary": string}]}
 - "about": true only if the email comes from this company's hiring process about this application (directly or through their applicant tracking system). False for job alerts, newsletters, marketing, recommendations, or other companies.
 - "kind": rejection = they won't move forward with you; interview = an invitation to schedule or attend an interview or call; next_step = an assessment, task or questionnaire; offer = a job offer; received = confirmation the application arrived; other = anything else about it.
-- "summary": one short sentence for the candidate, no em dashes.`;
+- "summary": one short sentence for the candidate, no em dashes.
+- A rejection must be a definite statement that THIS application is over ("we will not be moving forward", "we have decided to pursue other candidates"). Conditional boilerplate in an acknowledgement is NOT a rejection, e.g. "should your application be successful we will contact you; if you are not contacted within 30 days, consider it unsuccessful". That is "received".
+- The company may have several openings. If the email names a different position or requisition number than this one, "about" is false.${requisitionIds(job).length ? `\n- This job's requisition number: ${requisitionIds(job).join(', ')}.` : ''}`;
+
+/** Requisition numbers (e.g. R0134813) in the posting's address: how a company tells its openings apart. */
+function requisitionIds(job: Job): string[] {
+  return [...new Set((`${job.url} ${job.applyUrl || ''} ${job.sourceId}`.match(/\bR\d{5,}\b/g) || []))];
+}
+
+const CONDITIONAL = /should your application be successful|if you (?:are|have) not (?:been )?contacted|if you do not hear|not been successful for that role/i;
+const DEFINITE = /unfortunately|we regret|regret to inform|will not be (?:moving|proceeding|going)|not (?:be )?(?:moving|going|proceed\w*) forward|other candidates|decided not to|no longer (?:being )?considered/i;
+
+/** Code-side checks on the model's verdict for one email, so a misread can't reject or mismatch an application. */
+function vet(job: Job, m: Found, about: boolean, kind: MailKind): { about: boolean; kind: MailKind } {
+  const ids = requisitionIds(job);
+  const named = [...new Set(m.text.match(/\bR\d{5,}\b/g) || [])];
+  if (ids.length && named.length && !named.some(n => ids.includes(n))) return { about: false, kind }; // another opening
+  if (kind === 'rejection' && CONDITIONAL.test(m.text) && !DEFINITE.test(m.text)) return { about, kind: 'received' };
+  return { about, kind };
+}
 
 const LABEL: Record<MailKind, string> = {
   rejection: 'Rejection email',
@@ -197,7 +216,10 @@ export async function processMail(job: Job, mails: Found[], h: RunHandle, change
   mails.forEach((m, i) => {
     const v = verdicts.find((x: any) => x?.id === `e${i + 1}`);
     if (!v?.about) return;
-    items.push({ id: m.id, at: m.at, from: m.from, subject: m.subject, kind: oneOf(v.kind, KINDS, 'other'), summary: noEmDash(str(v.summary, 300)) || m.subject });
+    const vetted = vet(job, m, true, oneOf(v.kind, KINDS, 'other'));
+    if (!vetted.about) return;
+    const summary = vetted.kind !== v.kind && vetted.kind === 'received' ? 'Application received.' : noEmDash(str(v.summary, 300)) || m.subject;
+    items.push({ id: m.id, at: m.at, from: m.from, subject: m.subject, kind: vetted.kind, summary });
   });
   applyMail(job.id, mails.map(m => m.id), items, changes);
   return items.length;
