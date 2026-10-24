@@ -226,8 +226,8 @@ export function Onboarding() {
           {screen !== 'resume' && screen !== 'you' && <ReadingBanner reading={reading} onRetry={() => go('resume')} invite={screen === 'story' ? 'While Hermes reads your resume, tell us your story.' : undefined} />}
           <FooterSlot.Provider value={footer}>
             <AnimatePresence mode="wait">
-              {/* mt-auto: a short step sits just above its buttons, so the eye and the mouse barely travel. */}
-              <motion.div key={screen} className="mt-auto" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
+              {/* my-auto: a short step sits in the middle of the space above its pinned buttons. */}
+              <motion.div key={screen} className="my-auto" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
                 {screen === 'welcome' && <WelcomeStep kicker={nav.kicker} next={nav.next} />}
                 {screen === 'connect' && <ConnectStep kicker={nav.kicker} next={nav.next} back={nav.back} />}
                 {screen === 'resume' && <ResumeStep {...nav} />}
