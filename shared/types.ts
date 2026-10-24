@@ -358,6 +358,15 @@ export interface Settings {
   gmail?: { connected: boolean; email?: string; autoCheck?: boolean; lastCheckAt?: string; lastResult?: string; error?: string };
   voice?: { connected: boolean; model?: string }; // voice typing via your own Gemini key (being tested)
   theme?: 'light' | 'dark' | 'system';
+  onboarding?: OnboardingProgress;
+}
+
+/** Where you are in first-time setup, so closing the window halfway doesn't lose anything. */
+export interface OnboardingProgress {
+  step?: string;
+  resumeName?: string; // the file Hermes is reading (or read)
+  story?: Record<string, string>; // answers to the "your story" questions, keyed by question id
+  confirmedPrefs?: (keyof Preferences)[]; // set by you already, so resume suggestions mustn't overwrite them
 }
 
 export interface Report {
