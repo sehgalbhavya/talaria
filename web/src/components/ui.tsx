@@ -164,10 +164,11 @@ export function Segmented<T extends string>({ value, onChange, options, size = '
           className={cn(
             'relative rounded-md font-medium whitespace-nowrap transition-colors',
             size === 'sm' ? 'h-7 px-2.5 text-[12px]' : 'h-8 px-3 text-[13px]',
-            value === o.value ? 'text-ink' : 'text-muted hover:text-ink-2',
+            value === o.value ? 'text-bg' : 'text-muted hover:text-ink-2',
           )}
         >
-          {value === o.value && <motion.span layoutId={`seg-${id}`} className="absolute inset-0 rounded-md bg-card shadow-card" transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }} />}
+          {/* Filled like the selected pills elsewhere, so the choice reads at a glance in both themes. */}
+          {value === o.value && <motion.span layoutId={`seg-${id}`} className="absolute inset-0 rounded-md bg-ink shadow-card" transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }} />}
           <span className="relative">{o.label}</span>
         </button>
       ))}
