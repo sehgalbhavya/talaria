@@ -2,6 +2,7 @@ import * as React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlertTriangle, ArrowRight, BookmarkCheck, Check, CircleHelp, Download, ExternalLink, FileCode2, FileText, Lightbulb, PenLine, RefreshCw, Send, Sparkles, Wand2 } from 'lucide-react';
 import type { AgentQuestion, Job } from '@shared/types';
+import { usableSuggestion } from '@shared/suggestion';
 import { jobActions, patchJobLocal, useApp } from '@/lib/store';
 import { cn, pendingQuestions, timeAgo } from '@/lib/utils';
 import { Badge, Button, CopyButton, Input, SectionTitle, Segmented, Textarea, inputCls } from '../ui';
@@ -377,6 +378,7 @@ function QuestionsForm({ job }: { job: Job }) {
 }
 
 export function QuestionField({ q, value, onChange, remember, onRemember }: { q: AgentQuestion; value: string; onChange: (v: string) => void; remember: boolean; onRemember: (v: boolean) => void }) {
+  const suggestion = usableSuggestion(q.suggested);
   return (
     <div className="px-5 py-4">
       <div className="flex items-start justify-between gap-3">
@@ -415,10 +417,13 @@ export function QuestionField({ q, value, onChange, remember, onRemember }: { q:
         )}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-        {q.suggested && value !== q.suggested && (
-          <button type="button" onClick={() => onChange(q.suggested!)} className="inline-flex items-center gap-1 text-[12px] font-medium text-accent hover:underline">
-            <Wand2 className="size-3" /> Use Hermes's suggestion: “{q.suggested.length > 60 ? q.suggested.slice(0, 58) + '…' : q.suggested}”
-          </button>
+        {suggestion && value !== suggestion && (
+          <div className="w-full">
+            <p className="whitespace-pre-wrap rounded-lg bg-accent/5 px-3 py-2 text-[13px] leading-relaxed text-ink-2">{suggestion}</p>
+            <button type="button" onClick={() => onChange(suggestion)} className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-accent hover:underline">
+              <Wand2 className="size-3" /> Use Hermes's suggestion
+            </button>
+          </div>
         )}
         <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-[12px] text-muted select-none">
           <input type="checkbox" checked={remember} onChange={e => onRemember(e.target.checked)} className="size-3.5 accent-[var(--accent)]" />

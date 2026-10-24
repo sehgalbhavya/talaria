@@ -2,6 +2,9 @@ import type { Job, Preferences, Profile } from '../../shared/types.ts';
 import { truncate } from '../lib/text.ts';
 import { jobTrack } from '../../shared/track.ts';
 
+/** Gaps are not weaknesses: show readiness to learn, truthfully. Appended to every prompt that writes in the candidate's voice. */
+export const RULES_GROWTH = `Learning attitude: where the job asks for something the candidate has not done yet, never claim it and never apologise for it. Show readiness instead: name the closest real experience they have, and say plainly (one sentence, no gushing) that they pick up new tools and domains quickly and are keen to, ideally pointing at a true example of having done so. A gap is a chance to learn, not a reason to hide or to bluff.`;
+
 export const RULES_NO_FABRICATION = `Hard rules:
 - Never invent employers, job titles, dates, degrees, certifications, metrics or skills the candidate does not have.
 - You may rephrase, reorder, merge, trim and emphasise facts that ARE in the candidate's background.

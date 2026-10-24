@@ -1,10 +1,11 @@
+import { usableSuggestion } from '../../shared/suggestion.ts';
 import type { AgentQuestion, Analysis, ArchiveReason, ChatMessage, ExperienceItem, Job, JobStatus, Packet, PrepareOptions, QuestionKind, TaskKind, TailoredResume } from '../../shared/types.ts';
 import { askJson, callHermes, finishRun, isJobPaused, isPausedError, PAUSED, pauseJobCalls, resumeJobCalls, startRun, type RunHandle } from '../lib/hermes.ts';
 import { compileLatex, findPdflatex, splitLatex, validateBody } from '../lib/latex.ts';
 import { applyEdits, MAX_BULLETS, parseSlots, plainLatex, noEmDash, sanitizeEdits, similarity, strictClean, textHasKeyword, type SlotEdits, type Slots } from '../lib/latexSlots.ts';
 import { toast } from '../lib/events.ts';
 import { findAnswer, getJob, getPreferences, getProfile, getSettings, listAnswers, listJobs, newId, nextOrder, now, updateJob, upsertAnswer } from '../lib/store.ts';
-import { RULES_NO_FABRICATION, clamp, jobBrief, oneOf, preferencesBrief, profileBrief, str, strArr } from './common.ts';
+import { RULES_GROWTH, RULES_NO_FABRICATION, clamp, jobBrief, oneOf, preferencesBrief, profileBrief, str, strArr } from './common.ts';
 import { isStaleDraft, resumeHash } from '../../shared/resume.ts';
 
 const inflight = new Map<string, Promise<unknown>>();
@@ -188,10 +189,11 @@ Resume rules:
 - If the JOB is a PhD position (see POSITION TYPE), make it an academic CV: the summary becomes a research profile naming their research interests and how they fit this project; lead each role with its research side (studies, methods, prototypes, findings, the thesis); industry roles stay but are framed by research skills.
 - Keep EVERY role from the profile with the same number of bullets as the original (never more than 4; one extra only if the candidate's notes add a new true point). Start from the original points and reword them toward this job; you may swap a weak point for another true one. No point may repeat anywhere in the resume. Two pages is fine. Summary 40–75 words.
 - ${RULES_NO_FABRICATION.replace(/\n/g, ' ')}
+- ${RULES_GROWTH} In the summary and in the form answers, let this show where it fits; never add skills to the skills list or bullets to make it so.
 
 Questions rules (these are shown to the candidate before anything is submitted):
 - ${o.refine ? 'This is a refinement pass: ask NOTHING new unless it is truly blocking. Usually return [].' : o.interviewed ? 'You already interviewed the candidate (their answers are above). Ask only what a real application form for this job will need and you cannot infer from the facts given. Usually return []. Maximum 3.' : 'Ask only what a real application form will need or what would materially strengthen it, and which you cannot infer: e.g. work authorization / sponsorship for the job\'s country, salary expectation, earliest start date or notice period, willingness to relocate or work on-site, or whether they have a required skill the resume doesn\'t show (ask them to describe it briefly).'}
-- Maximum 5. Never ask for anything listed under facts already given. Prefer "yesno"/"choice" when possible; put a sensible draft in "suggested".`;
+- Maximum 5. Never ask for anything listed under facts already given. Prefer "yesno"/"choice" when possible; put a ready-to-use answer in "suggested": the answer itself in the candidate's voice (e.g. "Yes, I can start in January."), never advice about what to write; leave it empty if you can't answer truthfully.`;
 
 /** House rule: no em dashes anywhere in the resume. */
 function scrubEmDashes(r: TailoredResume) {
@@ -279,7 +281,7 @@ function normQuestions(raw: any, stage: AgentQuestion['stage'] = 'draft'): Agent
         why: str(q?.why, 300) || undefined,
         kind,
         options: kind === 'choice' ? strArr(q?.options, 8, 100) : undefined,
-        suggested: noEmDash(str(q?.suggested, 1200)) || undefined,
+        suggested: usableSuggestion(noEmDash(str(q?.suggested, 1200))),
         answer: hit?.answer,
         fromBank: Boolean(hit),
         required: stage === 'interview' ? q?.required === true : q?.required !== false,
@@ -636,7 +638,7 @@ Return ONLY JSON:
 {"intro": string, "questions": [{"question": string, "why": string, "kind": "text"|"longtext"|"choice"|"yesno"|"number", "options": [string], "suggested": string, "required": boolean, "reusable": boolean}]}
 - "intro": 1 to 2 friendly sentences to the candidate: the angle you plan to take for this role, and that a few answers will make it theirs. No em dashes.
 - "why": one short line on how the answer changes the application.
-- "suggested": a sensible draft answer they can accept as is (for "choice", one of the options). For questions about their experience, numbers or skills, the suggestion may only restate what the resume already says; if the resume doesn't say it, leave "suggested" empty. Never invent experience in a suggestion.
+- "suggested": the ANSWER ITSELF, written in first person exactly as the candidate would type it, ready to accept as is (for "choice", one of the options). Never instructions or advice about what to say ("State your…", "Describe…", "If you have none, say so"). If the facts don't let you answer truthfully, leave "suggested" empty rather than writing guidance. For questions about their experience, numbers or skills, the suggestion may only restate what the resume already says; if the resume doesn't say it, leave "suggested" empty. Never invent experience in a suggestion.
 - "required": true only for facts the application form will need (logistics). Personalisation questions are optional.
 - "reusable": true for facts that hold for every application (sponsorship, salary, start date, relocation, a skill they have); false for answers specific to this job.`;
 
@@ -726,6 +728,8 @@ What the letter should do, as one connected narrative:
 At most ONE short real story or example, ideally with what came of it, chosen to show who they are; no lists of achievements, metrics, tools or job titles.
 
 Truth: use ONLY facts from their story, their answers, their notes and the resume. Never invent hobbies, experiences, feelings, places or a personal connection to the company. If the personal material is thin, write a shorter, honest letter built on what's there rather than making anything up.
+
+${RULES_GROWTH} Where the posting asks for something they haven't done, one honest sentence of this is enough; it must never read as an excuse.
 
 Style: warm, specific, natural first person; 200 to 300 words; 3 to 4 paragraphs; plain text with a blank line between paragraphs. Greeting "Dear ${o.company} team," unless a person is named in the posting. Sign off with "${o.name}". No em dashes, no clichés ("passionate", "thrilled", "excited to apply", "dynamic", "fast-paced", "leverage", "synergy", "proven track record").
 
@@ -837,7 +841,7 @@ THE CANDIDATE JUST SAID
 """${o.message}"""
 
 Decide what to do. Do the SMALLEST thing that answers what they asked:
-- "write": they want a piece of text written: an answer to an application-form question (often pasted as-is, e.g. "Pitch yourself" or "Why do you want to work here?"), a pitch, a short bio, a message to a recruiter or supervisor, a LinkedIn note. Put ONLY that text in "text", ready to paste, in their voice and true to their resume, story and answers. Respect any length limit exactly (characters or words). Put the form question it answers in "question". This never changes the resume or the cover letter.
+- "write": they want a piece of text written (where the posting asks for something the candidate has not done, show honest readiness to learn rather than bluffing or apologising): an answer to an application-form question (often pasted as-is, e.g. "Pitch yourself" or "Why do you want to work here?"), a pitch, a short bio, a message to a recruiter or supervisor, a LinkedIn note. Put ONLY that text in "text", ready to paste, in their voice and true to their resume, story and answers. Respect any length limit exactly (characters or words). Put the form question it answers in "question". This never changes the resume or the cover letter.
 - "revise": they want a change to the resume and/or cover letter and you have what you need. Write a precise brief for the writer in "instructions" (what to change and where, plus any facts they just gave you) and set "target".
 - "draft": there is no draft yet and they want you to go ahead, or they gave you enough to start.
 - "ask": you need a fact or a preference to do it well, or the request is ambiguous in a way that changes the result. Ask 1 to 3 short questions instead of guessing.

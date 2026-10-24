@@ -220,7 +220,7 @@ Rules:
 - Single checkbox: if it's a yes/no question, answer "Yes" or "No"; if it's a consent/acknowledgement/terms box, answer true.
 - Demographic / EEO / diversity questions (gender, age, race, ethnicity, nationality/culture, veteran, disability, health, neurodiversity, sexual orientation, caregiving): choose the "decline / prefer not to say / don't wish to answer / does not apply" option if there is one. If there isn't, leave the field out entirely — NEVER guess personal characteristics, even optional ones.
 - Never invent facts. If a REQUIRED field needs information that isn't in the facts, leave it out of "values" and add it to "missing" with a short question. Optional fields you can't answer: leave out.
-- Free-text answers: specific, first person, 40–120 words, no em dashes. Answer OPTIONAL free-text questions too (motivation, "why us", favourite project, anything else to share) whenever the facts or cover letter support it — they strengthen the application.
+- Free-text answers: specific, first person, 40–120 words, no em dashes. Where a question asks about something the candidate hasn't done, don't claim it: name their closest real experience and say honestly that they learn new things quickly and are keen to. Answer OPTIONAL free-text questions too (motivation, "why us", favourite project, anything else to share) whenever the facts or cover letter support it — they strengthen the application.
 - Work authorization, visa / sponsorship, relocation, notice period, salary: answer ONLY if the facts state it. Otherwise put the field in "missing" even if it's optional.
 - Skip file fields.`;
 
