@@ -10,8 +10,9 @@ import { Button, CopyButton, Field, Input } from '@/components/ui';
 export function StepHeader({ kicker, title, children }: { kicker: string; title: React.ReactNode; children?: React.ReactNode }) {
   return (
     <div className="mb-8">
-      <div className="text-[12px] font-semibold tracking-[0.1em] text-gold uppercase">{kicker}</div>
-      <h2 className="mt-2 font-display text-[32px] leading-[1.05] tracking-[-0.015em] text-ink">{title}</h2>
+      {/* On wide screens the sidebar already shows where you are. */}
+      <div className="mb-2 text-[12px] font-semibold tracking-[0.1em] text-gold uppercase lg:hidden">{kicker}</div>
+      <h2 className="font-display text-[32px] leading-[1.05] tracking-[-0.015em] text-ink">{title}</h2>
       {children && <p className="mt-3 text-[15px] leading-relaxed text-muted">{children}</p>}
     </div>
   );

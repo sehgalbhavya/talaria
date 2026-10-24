@@ -226,7 +226,8 @@ export function Onboarding() {
           {screen !== 'resume' && screen !== 'you' && <ReadingBanner reading={reading} onRetry={() => go('resume')} invite={screen === 'story' ? 'While Hermes reads your resume, tell us your story.' : undefined} />}
           <FooterSlot.Provider value={footer}>
             <AnimatePresence mode="wait">
-              <motion.div key={screen} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
+              {/* mt-auto: a short step sits just above its buttons, so the eye and the mouse barely travel. */}
+              <motion.div key={screen} className="mt-auto" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
                 {screen === 'welcome' && <WelcomeStep kicker={nav.kicker} next={nav.next} />}
                 {screen === 'connect' && <ConnectStep kicker={nav.kicker} next={nav.next} back={nav.back} />}
                 {screen === 'resume' && <ResumeStep {...nav} />}
@@ -241,7 +242,7 @@ export function Onboarding() {
             </AnimatePresence>
           </FooterSlot.Provider>
           {/* Each step's Back / Continue land here, outside the page animation, so they stay exactly where they are. */}
-          <div ref={setFooter} className="sticky bottom-0 z-10 mt-auto bg-gradient-to-t from-bg from-70% to-transparent pt-10 pb-8" />
+          <div ref={setFooter} className="sticky bottom-0 z-10 bg-gradient-to-t from-bg from-70% to-transparent pt-10 pb-8" />
         </div>
       </main>
     </div>
