@@ -99,6 +99,7 @@ export interface Profile {
 }
 
 export type Seniority = 'intern' | 'entry' | 'mid' | 'senior' | 'lead';
+export type WorkKind = 'full_time' | 'internship' | 'phd';
 export type RemotePreference = 'remote_only' | 'remote_or_hybrid' | 'any' | 'onsite';
 
 /** A company you want watched. "site" = its own careers website (read from the page, or searched within it). */
@@ -125,6 +126,7 @@ export interface Preferences {
   sources: Partial<Record<SourceId, boolean>>;
   maxAgeDays: number;
   phd?: { enabled: boolean; fields: string[]; countries: string[] }; // PhD positions: research fields and where
+  lookingFor?: WorkKind[]; // what kind of work you want; unset means jobs, as before onboarding asked
 }
 
 export interface AnswerBankItem {

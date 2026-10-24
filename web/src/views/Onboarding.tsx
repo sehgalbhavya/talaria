@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, FileText, Loader2, Pencil, RefreshCw, Sparkles, UploadCloud } from 'lucide-react';
-import type { AgentRun, OnboardingProgress, Preferences, Profile, RemotePreference, Seniority } from '@shared/types';
+import type { AgentRun, OnboardingProgress, Preferences, Profile, RemotePreference, Seniority, WorkKind } from '@shared/types';
+import { wantsJobs } from '@shared/track';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import { navigate } from '@/lib/router';
@@ -15,28 +16,43 @@ import { ConnectStep, FooterSlot, NextButton, SkipLink, StepFooter, StepHeader, 
 // The sidebar's sections and the screens inside them. Every step number on screen comes from here.
 const SECTIONS = ['Welcome', 'Connect the AI', 'Your resume', 'Your story', "What you're after", 'Is this you?', 'Where to look', 'Review & start'];
 
-type Screen = 'welcome' | 'connect' | 'resume' | 'story' | 'roles' | 'where' | 'matters' | 'you' | 'sources' | 'launch';
+type Screen = 'welcome' | 'connect' | 'resume' | 'story' | 'kind' | 'roles' | 'where' | 'matters' | 'phd' | 'you' | 'sources' | 'launch';
 
-const SCREENS: { id: Screen; section: number }[] = [
+const wantsPhd = (p: Preferences) => Boolean(p.lookingFor?.includes('phd'));
+
+// `when`: shown only if it applies to what you're looking for (no job questions if you only want PhDs).
+const SCREENS: { id: Screen; section: number; when?: (p: Preferences) => boolean }[] = [
   { id: 'welcome', section: 0 },
   { id: 'connect', section: 1 },
   { id: 'resume', section: 2 },
   { id: 'story', section: 3 },
-  { id: 'roles', section: 4 },
-  { id: 'where', section: 4 },
-  { id: 'matters', section: 4 },
+  { id: 'kind', section: 4 },
+  { id: 'roles', section: 4, when: wantsJobs },
+  { id: 'where', section: 4, when: wantsJobs },
+  { id: 'matters', section: 4, when: wantsJobs },
+  { id: 'phd', section: 4, when: wantsPhd },
   { id: 'you', section: 5 },
-  { id: 'sources', section: 6 },
+  { id: 'sources', section: 6, when: wantsJobs },
   { id: 'launch', section: 7 },
 ];
 
+/** The screens that apply to you right now, read fresh so a choice you just saved counts. */
+const activeScreens = () => {
+  const prefs = useApp.getState().preferences;
+  return SCREENS.filter(s => !s.when || (prefs && s.when(prefs)));
+};
+
 const sectionOf = (screen: Screen) => SCREENS.find(s => s.id === screen)!.section;
+
+/** The sections that have something for you, so step numbers count only those. */
+const activeSections = () => [...new Set(activeScreens().map(s => s.section))];
 
 function kickerFor(screen: Screen) {
   const section = sectionOf(screen);
-  const inSection = SCREENS.filter(s => s.section === section);
+  const inSection = activeScreens().filter(s => s.section === section);
   const part = inSection.length > 1 ? ` (${inSection.findIndex(s => s.id === screen) + 1} of ${inSection.length})` : '';
-  return `Step ${section + 1} of ${SECTIONS.length} · ${SECTIONS[section]}${part}`;
+  const sections = activeSections();
+  return `Step ${sections.indexOf(section) + 1} of ${sections.length} · ${SECTIONS[section]}${part}`;
 }
 
 type Nav = { kicker: string; next: () => void; back: () => void; go: (screen: Screen) => void };
@@ -167,11 +183,18 @@ export function Onboarding() {
     scroller.current?.scrollTo({ top: 0 });
     root.current?.parentElement?.scrollTo({ top: 0 });
   };
-  const index = SCREENS.findIndex(s => s.id === screen);
+  useApp(s => s.preferences?.lookingFor); // re-render when the kinds of work change the steps
+  // Steps move through the full list, skipping ones that don't apply to you.
+  const step = (dir: 1 | -1) => {
+    const active = new Set(activeScreens().map(s => s.id));
+    let i = SCREENS.findIndex(s => s.id === screen) + dir;
+    while (SCREENS[i] && !active.has(SCREENS[i].id)) i += dir;
+    if (SCREENS[i]) go(SCREENS[i].id);
+  };
   const nav: Nav = {
     kicker: kickerFor(screen),
-    next: () => go(SCREENS[Math.min(SCREENS.length - 1, index + 1)].id),
-    back: () => go(SCREENS[Math.max(0, index - 1)].id),
+    next: () => step(1),
+    back: () => step(-1),
     go,
   };
   const current = sectionOf(screen);
@@ -197,7 +220,8 @@ export function Onboarding() {
         <ol className="relative space-y-3">
           {SECTIONS.map((s, i) => {
             const done = i < current;
-            const first = SCREENS.find(x => x.section === i)!.id;
+            const first = activeScreens().find(x => x.section === i)?.id;
+            if (!first) return null; // nothing in it applies to you (e.g. job boards when you only want PhDs)
             return (
               <li key={s}>
                 <button
@@ -207,7 +231,7 @@ export function Onboarding() {
                   className={cn('flex items-center gap-3 text-left text-[14px] transition-colors', i === current ? 'text-white' : done ? 'text-white/55 hover:text-white/80' : 'text-white/30')}
                 >
                   <span className={cn('grid size-6 shrink-0 place-items-center rounded-full text-[11.5px] font-semibold', done ? 'bg-[#e7b04c] text-[#121116]' : i === current ? 'bg-white text-[#121116]' : 'border border-white/20')}>
-                    {done ? <Check className="size-3.5" strokeWidth={3} /> : i + 1}
+                    {done ? <Check className="size-3.5" strokeWidth={3} /> : activeSections().indexOf(i) + 1}
                   </span>
                   <span>
                     {s}
@@ -232,9 +256,11 @@ export function Onboarding() {
                 {screen === 'connect' && <ConnectStep kicker={nav.kicker} next={nav.next} back={nav.back} />}
                 {screen === 'resume' && <ResumeStep {...nav} />}
                 {screen === 'story' && <StoryStep {...nav} />}
+                {screen === 'kind' && <KindStep {...nav} />}
                 {screen === 'roles' && <RolesStep {...nav} />}
                 {screen === 'where' && <WhereStep {...nav} />}
                 {screen === 'matters' && <MattersStep {...nav} />}
+                {screen === 'phd' && <PhdStep {...nav} />}
                 {screen === 'you' && <ProfileCheckStep {...nav} />}
                 {screen === 'sources' && <SourcesStep {...nav} />}
                 {screen === 'launch' && <LaunchStep {...nav} />}
@@ -517,10 +543,72 @@ function TopicsFields({ prefs, onChange }: PrefsProps) {
   );
 }
 
+const WORK_KINDS: { value: WorkKind; label: string; desc: string }[] = [
+  { value: 'full_time', label: 'Full-time roles', desc: 'Permanent jobs, at the level you choose next.' },
+  { value: 'internship', label: 'Internships', desc: 'Internships, placements and working student roles.' },
+  { value: 'phd', label: 'PhD positions', desc: 'Funded doctoral positions at universities, labs and industry programmes.' },
+];
+
+/**
+ * Picking the kinds of work also sets what they imply: internships are a seniority level, and
+ * PhD positions have their own search.
+ */
+function withKinds(prefs: Preferences, kinds: WorkKind[]): Partial<Preferences> {
+  let seniority: Seniority[] = prefs.seniority.filter(s => s !== 'intern');
+  if (kinds.includes('full_time') && !seniority.length) seniority = ['entry', 'mid'];
+  if (!kinds.includes('full_time')) seniority = [];
+  if (kinds.includes('internship')) seniority = ['intern', ...seniority];
+  const phd = prefs.phd || { enabled: false, fields: [], countries: [] };
+  return { lookingFor: kinds, seniority: seniority.length ? seniority : prefs.seniority, phd: { ...phd, enabled: kinds.includes('phd') } };
+}
+
+function WorkKindFields({ prefs, onChange, cards }: PrefsProps & { cards?: boolean }) {
+  const kinds = prefs.lookingFor?.length ? prefs.lookingFor : (['full_time'] as WorkKind[]);
+  const toggle = (k: WorkKind) => onChange(withKinds(prefs, kinds.includes(k) ? kinds.filter(x => x !== k) : [...kinds, k]));
+  if (!cards)
+    return (
+      <Field label="Looking for">
+        <div className="flex flex-wrap gap-1.5">
+          {WORK_KINDS.map(k => {
+            const on = kinds.includes(k.value);
+            return (
+              <button key={k.value} type="button" onClick={() => toggle(k.value)} className={cn('h-8 rounded-lg border px-3 text-[13px] font-medium transition-colors', on ? 'border-ink bg-ink text-bg' : 'border-line bg-card text-ink-2 hover:border-ink/30')}>
+                {k.label}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+    );
+  return (
+    <div className="grid gap-2">
+      {WORK_KINDS.map(k => {
+        const on = Boolean(prefs.lookingFor?.includes(k.value));
+        return (
+          <button
+            key={k.value}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(withKinds(prefs, on ? (prefs.lookingFor || []).filter(x => x !== k.value) : [...(prefs.lookingFor || []), k.value]))}
+            className={cn('flex items-center gap-3 rounded-xl border px-4 py-3.5 text-left transition-colors', on ? 'border-ink bg-card shadow-card' : 'border-line bg-card/60 hover:border-ink/30')}
+          >
+            <span className={cn('grid size-5 shrink-0 place-items-center rounded-md border', on ? 'border-ink bg-ink text-bg' : 'border-line')}>{on && <Check className="size-3" strokeWidth={3} />}</span>
+            <span>
+              <span className="block text-[14px] font-semibold text-ink">{k.label}</span>
+              <span className="block text-[12.5px] text-muted">{k.desc}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /** All job preferences on one page, for the Profile screen. */
 export function PreferencesForm(props: PrefsProps) {
   return (
     <div className="space-y-5">
+      <WorkKindFields {...props} />
       <RolesFields {...props} />
       <WhereFields {...props} />
       <TopicsFields {...props} />
@@ -529,7 +617,7 @@ export function PreferencesForm(props: PrefsProps) {
 }
 
 /** One screen's share of your preferences. Suggestions Hermes finds meanwhile fill anything you haven't touched. */
-function usePrefsDraft(keys: (keyof Preferences)[]) {
+function usePrefsDraft(keys: (keyof Preferences)[], confirm: (keyof Preferences)[] = keys) {
   const stored = useApp(s => s.preferences)!;
   const [draft, setDraft] = React.useState(stored);
   const touched = React.useRef(new Set<keyof Preferences>());
@@ -554,7 +642,7 @@ function usePrefsDraft(keys: (keyof Preferences)[]) {
     try {
       await api.put('/api/preferences', Object.fromEntries(keys.map(k => [k, draft[k]])));
       // Empty lists stay open to Hermes's suggestions; anything you've set is yours.
-      const mine = keys.filter(k => !(Array.isArray(draft[k]) && !(draft[k] as unknown[]).length));
+      const mine = confirm.filter(k => !(Array.isArray(draft[k]) && !(draft[k] as unknown[]).length));
       const before = useApp.getState().settings?.onboarding?.confirmedPrefs || [];
       await saveProgress({ confirmedPrefs: [...new Set([...before, ...mine])] });
       then();
@@ -575,12 +663,30 @@ function StillReadingNote() {
   );
 }
 
+function KindStep({ kicker, next, back }: Nav) {
+  const name = useApp(s => s.profile?.name?.split(' ')[0]);
+  // Only the choice itself is yours yet; the level it implies can still take Hermes's suggestion.
+  const { draft, change, save, saving } = usePrefsDraft(['lookingFor', 'seniority', 'phd'], ['lookingFor']);
+  const picked = draft.lookingFor?.length || 0;
+  return (
+    <div>
+      <StepHeader kicker={kicker} title={name ? `What kind of work are you looking for, ${name}?` : 'What kind of work are you looking for?'}>
+        Pick everything you're open to. It decides what Talaria searches for and which questions come next.
+      </StepHeader>
+      <WorkKindFields prefs={draft} onChange={change} cards />
+      <StepFooter back={back}>
+        <NextButton loading={saving} disabled={!picked} title={picked ? undefined : 'Pick at least one'} onClick={() => save(next)} />
+      </StepFooter>
+    </div>
+  );
+}
+
 function RolesStep({ kicker, next, back }: Nav) {
   const name = useApp(s => s.profile?.name?.split(' ')[0]);
   const { draft, change, save, saving } = usePrefsDraft(['roles', 'seniority']);
   return (
     <div>
-      <StepHeader kicker={kicker} title={name ? `What are you looking for, ${name}?` : 'What are you looking for?'}>
+      <StepHeader kicker={kicker} title={name ? `Which roles, ${name}?` : 'Which roles?'}>
         The job titles you want, and the level you're aiming for. Pick more than one if you're open to it.
       </StepHeader>
       <StillReadingNote />
@@ -629,6 +735,34 @@ function MattersStep({ kicker, next, back }: Nav) {
       </div>
       <StepFooter back={back}>
         <NextButton loading={saving} onClick={() => save(next)} />
+      </StepFooter>
+    </div>
+  );
+}
+
+function PhdStep({ kicker, next, back }: Nav) {
+  const { draft, change, save, saving } = usePrefsDraft(['phd']);
+  const phd = draft.phd || { enabled: true, fields: [], countries: [] };
+  const set = (patch: Partial<typeof phd>) => change({ phd: { ...phd, enabled: true, ...patch } });
+  // Suggest from what Hermes found in your own resume, never a fixed list.
+  const ideas = draft.includeKeywords.filter(k => !phd.fields.includes(k));
+  return (
+    <div>
+      <StepHeader kicker={kicker} title="What would you love to research?">
+        Hermes searches academic job boards and university, lab and industry pages for open, funded PhD positions in these fields, and close ones your background fits. They get their own side of the board.
+      </StepHeader>
+      <StillReadingNote />
+      <div className="space-y-5">
+        <Field label="Research fields" hint="Add a few. Hermes also looks at closely related topics.">
+          <ChipInput value={phd.fields} onChange={fields => set({ fields })} placeholder="e.g. Human-computer interaction" suggestions={ideas} />
+        </Field>
+        <Field label="Where" hint="Countries or cities. Leave empty for anywhere in Europe.">
+          <ChipInput value={phd.countries} onChange={countries => set({ countries })} placeholder="e.g. Germany, Netherlands" />
+        </Field>
+      </div>
+      <StepFooter back={back}>
+        {!phd.fields.length && <span className="text-[12.5px] text-faint">Add at least one field</span>}
+        <NextButton loading={saving} disabled={!phd.fields.length} onClick={() => save(next)} />
       </StepFooter>
     </div>
   );
@@ -815,14 +949,19 @@ function LaunchStep({ kicker, back, go }: Nav) {
     }
   };
 
-  const rows: { label: string; value: string; edit: Screen }[] = [
+  const jobs = wantsJobs(prefs);
+  const kinds = (prefs.lookingFor || []).map(k => WORK_KINDS.find(x => x.value === k)?.label).filter(Boolean);
+  type Row = { label: string; value: string; edit: Screen; show?: boolean };
+  const rows = ([
     { label: 'You', value: profile ? [profile.name, profile.headline].filter(Boolean).join(' · ') : 'Hermes is still reading your resume', edit: 'you' },
     { label: 'Your story', value: answered ? `${answered} of ${STORY_QUESTIONS.length} questions answered` : 'Not written yet (Hermes will ask when it writes a cover letter)', edit: 'story' },
-    { label: 'Roles', value: `${prefs.roles.join(', ') || 'None yet'} · ${prefs.seniority.map(s => SENIORITY.find(x => x.value === s)?.label).join(', ')}`, edit: 'roles' },
-    { label: 'Where', value: [prefs.locations.join(', ') || 'Anywhere', REMOTE_LABEL[prefs.remote], prefs.needsSponsorship ? 'needs sponsorship' : null].filter(Boolean).join(' · '), edit: 'where' },
-    { label: 'What matters', value: `${prefs.includeKeywords.length} topics you'd love · ${prefs.excludeKeywords.length + prefs.excludeCompanies.length} things to skip`, edit: 'matters' },
-    { label: 'Sources', value: `${boards} job board${boards === 1 ? '' : 's'} · ${prefs.targetCompanies.length} compan${prefs.targetCompanies.length === 1 ? 'y' : 'ies'} watched`, edit: 'sources' },
-  ];
+    { label: 'Looking for', value: kinds.join(', ') || 'Full-time roles', edit: 'kind' },
+    { label: 'Roles', value: `${prefs.roles.join(', ') || 'None yet'} · ${prefs.seniority.map(s => SENIORITY.find(x => x.value === s)?.label).join(', ')}`, edit: 'roles', show: jobs },
+    { label: 'Where', value: [prefs.locations.join(', ') || 'Anywhere', REMOTE_LABEL[prefs.remote], prefs.needsSponsorship ? 'needs sponsorship' : null].filter(Boolean).join(' · '), edit: 'where', show: jobs },
+    { label: 'What matters', value: `${prefs.includeKeywords.length} topics you'd love · ${prefs.excludeKeywords.length + prefs.excludeCompanies.length} things to skip`, edit: 'matters', show: jobs },
+    { label: 'PhD research', value: [prefs.phd?.fields.join(', ') || 'No fields yet', prefs.phd?.countries.join(', ') || 'anywhere in Europe'].join(' · '), edit: 'phd', show: wantsPhd(prefs) },
+    { label: 'Sources', value: `${boards} job board${boards === 1 ? '' : 's'} · ${prefs.targetCompanies.length} compan${prefs.targetCompanies.length === 1 ? 'y' : 'ies'} watched`, edit: 'sources', show: jobs },
+  ] as Row[]).filter(r => r.show !== false);
 
   return (
     <div>
@@ -852,7 +991,7 @@ function LaunchStep({ kicker, back, go }: Nav) {
 
       <StepFooter back={back}>
         {!profile && <span className="text-[12.5px] text-faint">Waiting for Hermes to finish your resume</span>}
-        <Button variant="primary" size="lg" loading={busy} disabled={!profile || !prefs.roles.length} icon={<Sparkles className="size-4 text-gold" />} onClick={start}>
+        <Button variant="primary" size="lg" loading={busy} disabled={!profile || (jobs && !prefs.roles.length) || (wantsPhd(prefs) && !prefs.phd?.fields.length)} icon={<Sparkles className="size-4 text-gold" />} onClick={start}>
           Start the hunt
         </Button>
       </StepFooter>

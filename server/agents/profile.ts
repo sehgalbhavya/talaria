@@ -117,6 +117,13 @@ export async function buildProfileFromResume(resumeText: string, fileName?: stri
       remote: oneOf(s.remote, ['remote_only', 'remote_or_hybrid', 'any', 'onsite'] as const, current.remote),
       includeKeywords: current.includeKeywords.length ? current.includeKeywords : strArr(s.includeKeywords, 8, 40),
     };
+    // The kinds of work you picked decide the levels: internships are one, and no full-time means no job levels.
+    const kinds = current.lookingFor;
+    if (kinds?.length && suggested.seniority) {
+      let levels: Seniority[] = kinds.includes('full_time') ? suggested.seniority.filter(x => x !== 'intern') : [];
+      if (kinds.includes('internship')) levels = ['intern', ...levels];
+      suggested.seniority = levels.length ? levels : current.seniority;
+    }
     for (const key of confirmed) delete suggested[key];
     const preferences = setPreferences(suggested);
     // Your story is yours, not the resume's: it survives replacing the resume.
