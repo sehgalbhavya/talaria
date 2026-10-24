@@ -23,9 +23,12 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ ! -d node_modules ]; then
-  echo "Installing dependencies, one moment..."
-  npm install --no-audit --no-fund
+# Install packages the first time, and again whenever an update changed them
+# (package-lock.json newer than the last install). npm ci installs exactly what the
+# lockfile says and never edits tracked files, so the next update still pulls cleanly.
+if [ ! -f node_modules/.package-lock.json ] || [ package-lock.json -nt node_modules/.package-lock.json ]; then
+  echo "Installing the packages Talaria needs, one moment..."
+  npm ci --no-audit --no-fund
 fi
 
 echo "Building the app..."

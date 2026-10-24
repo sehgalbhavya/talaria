@@ -11,9 +11,18 @@ if %errorlevel%==0 (
   exit /b 0
 )
 
-if not exist node_modules (
-  echo Installing dependencies, one moment...
-  call npm install --no-audit --no-fund || goto :fail
+rem Install packages the first time, and again whenever an update changed them
+rem (package-lock.json newer than the last install). npm ci installs exactly what the
+rem lockfile says and never edits tracked files, so the next update still pulls cleanly.
+set "NEEDS_INSTALL=0"
+if not exist "node_modules\.package-lock.json" set "NEEDS_INSTALL=1"
+if "%NEEDS_INSTALL%"=="0" (
+  powershell -NoProfile -Command "if ((Get-Item 'package-lock.json').LastWriteTime -gt (Get-Item 'node_modules\.package-lock.json').LastWriteTime) { exit 1 } else { exit 0 }"
+  if errorlevel 1 set "NEEDS_INSTALL=1"
+)
+if "%NEEDS_INSTALL%"=="1" (
+  echo Installing the packages Talaria needs, one moment...
+  call npm ci --no-audit --no-fund || goto :fail
 )
 
 echo Building the app...

@@ -275,10 +275,12 @@ To start completely fresh, use **Settings → Start over**.
 
 ## Updating Talaria
 
-- **If you used Git:** run `git pull` in the Talaria folder, then start Talaria again. Your `data/` folder is left alone.
+Updates never touch your data: your profile, jobs and drafts live in `data/`, which updates don't include. Close Talaria's window first, then:
+
+- **If you used Git:** run `git pull` in the Talaria folder, then start Talaria again.
 - **If you downloaded the ZIP:** download the new ZIP, extract it, and copy your old `data/` folder into the new folder. Then start Talaria from the new folder.
 
-When `package.json` changed, the launcher may need a fresh install: delete the `node_modules` folder and start Talaria again.
+The launcher (`Talaria.bat` or `talaria.sh`) rebuilds the app on every start and installs any new packages an update brings, so there's nothing else to do. The first start after such an update takes a minute longer.
 
 ---
 
