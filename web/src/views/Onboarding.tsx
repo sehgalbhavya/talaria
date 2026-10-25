@@ -12,6 +12,7 @@ import { Logo } from '@/components/brand';
 import { useElapsed } from '@/components/drawer/hooks';
 import { BOARDS, SourcesEditor } from '@/views/Profile';
 import { ConnectStep, FooterSlot, NextButton, SkipLink, StepFooter, StepHeader, WelcomeStep } from '@/views/OnboardingSetup';
+import { ModelSelect } from '@/views/Settings';
 
 // The sidebar's sections and the screens inside them. Every step number on screen comes from here.
 const SECTIONS = ['Welcome', 'Connect the AI', 'Your resume', 'Your story', "What you're after", 'Is this you?', 'Where to look', 'Review & start'];
@@ -81,6 +82,28 @@ function useResumeReading(): Reading {
   return { state: resumeName && !run ? 'reading' : 'idle', run };
 }
 
+// After this long, onboarding offers to read the resume with another model.
+const SLOW_READ_SEC = 45;
+
+/** Which model reads your resume: the main one, or a faster one just for this. */
+function ReaderModel({ value, onChange }: { value: string; onChange: (model: string) => void }) {
+  const hermes = useApp(s => s.settings?.hermes);
+  const [models, setModels] = React.useState<string[]>([]);
+  React.useEffect(() => {
+    if (hermes?.provider) api.get<Record<string, string[]>>('/api/hermes/models', { quiet: true }).then(m => setModels(m[hermes.provider] || [])).catch(() => {});
+  }, [hermes?.provider]);
+  if (!hermes) return null;
+  const hint =
+    hermes.provider === 'gemini'
+      ? "On Gemini's free tier, gemini-flash-lite-latest or gemini-flash-latest read a resume fastest."
+      : 'A smaller model (Flash, mini, Haiku) usually reads a resume in under a minute.';
+  return (
+    <Field label="Who reads it" hint={`${hint} This only changes who reads your resume; Settings keeps your main model (${hermes.model}).`}>
+      <ModelSelect value={value} options={['', ...models]} onChange={onChange} />
+    </Field>
+  );
+}
+
 const READING_LINES = ['Reading every line', 'Pulling out your experience', 'Cataloguing your skills', 'Working out which roles fit you', 'Almost there'];
 
 /**
@@ -133,6 +156,11 @@ function ReadingBanner({ reading, onRetry, invite }: { reading: Reading; onRetry
                 <span className="truncate font-medium text-ink">{invite}</span>
                 <span className="shrink-0 text-faint tabular-nums">{elapsed}s</span>
               </>
+            )}
+            {mode === 'reading' && elapsed >= SLOW_READ_SEC && (
+              <button type="button" onClick={onRetry} className="shrink-0 font-medium text-gold underline-offset-2 hover:underline">
+                Use a faster model
+              </button>
             )}
             {mode === 'reading' && !invite && (
               <>
@@ -290,16 +318,31 @@ function ResumeStep({ kicker, next, back }: Nav) {
   const elapsed = useElapsed(reading.run?.startedAt, reading.state === 'reading');
 
   const [error, setError] = React.useState('');
-  const send = async (body: FormData | { text: string }, name: string) => {
+  const [reader, setReader] = React.useState('');
+  const send = async (body: FormData | { text: string; model?: string }, name: string) => {
     setSending(true);
     setError('');
     try {
+      if (body instanceof FormData) body.append('model', reader);
+      else body.model = reader;
       await api.post('/api/resume?background=1', body, { quiet: true });
       await saveProgress({ resumeName: name });
       setReplacing(false);
       next();
     } catch (err: any) {
       // Stay here, with the reason in view, so they can try another file.
+      setError(err?.message || 'Something went wrong.');
+    } finally {
+      setSending(false);
+    }
+  };
+  // Same resume, another model: the server stops the current read and starts over.
+  const reread = async () => {
+    setSending(true);
+    setError('');
+    try {
+      await api.post('/api/resume/reread', { model: reader }, { quiet: true });
+    } catch (err: any) {
       setError(err?.message || 'Something went wrong.');
     } finally {
       setSending(false);
@@ -326,7 +369,7 @@ function ResumeStep({ kicker, next, back }: Nav) {
             <div className="min-w-0 flex-1">
               <div className="truncate font-semibold text-ink">{resumeName || 'Your resume'}</div>
               <div className="text-[13px] text-muted">
-                {reading.state === 'reading' && <>Hermes is reading it in the background · {elapsed}s. You can carry on.</>}
+                {reading.state === 'reading' && <>Hermes is reading it{reading.run?.model ? ` with ${reading.run.model}` : ''} in the background · {elapsed}s. You can carry on.</>}
                 {reading.state === 'done' && <>Read{reading.run?.detail ? `: ${reading.run.detail}` : ''}. You'll check what Hermes found in step {sectionOf('you') + 1}.</>}
                 {reading.state === 'error' && <span className="text-bad">Hermes couldn't read it: {reading.run?.error?.split('\n')[0] || 'something went wrong'}</span>}
               </div>
@@ -334,9 +377,21 @@ function ResumeStep({ kicker, next, back }: Nav) {
             {reading.state === 'reading' && <Loader2 className="size-4 animate-spin text-gold" />}
           </div>
         </div>
+        {(reading.state === 'error' || (reading.state === 'reading' && elapsed >= SLOW_READ_SEC)) && (
+          <div className="mt-4 rounded-2xl border border-line bg-card p-5">
+            <p className="mb-3 text-[13.5px] text-ink">{reading.state === 'error' ? 'Read it again, with the same model or another one.' : 'Taking a while? Have a faster model read it instead.'}</p>
+            <ReaderModel value={reader} onChange={setReader} />
+            <div className="mt-3 flex justify-end">
+              <Button variant="primary" loading={sending} onClick={reread}>
+                Read again
+              </Button>
+            </div>
+            {error && <p className="mt-3 rounded-lg bg-bad-soft px-3 py-2 text-[12.5px] leading-relaxed text-bad">{error}</p>}
+          </div>
+        )}
         <StepFooter back={back}>
-          <Button variant="ghost" icon={reading.state === 'error' ? <RefreshCw className="size-4" /> : <UploadCloud className="size-4" />} onClick={() => setReplacing(true)}>
-            {reading.state === 'error' ? 'Try again' : 'Use a different resume'}
+          <Button variant="ghost" icon={<UploadCloud className="size-4" />} onClick={() => setReplacing(true)}>
+            Use a different resume
           </Button>
           <NextButton onClick={next}>Continue</NextButton>
         </StepFooter>
@@ -375,6 +430,9 @@ function ResumeStep({ kicker, next, back }: Nav) {
         <Textarea value={text} onChange={e => setText(e.target.value)} autoFocus placeholder="Paste the full text of your resume…" className="min-h-[260px] bg-card text-[13px]" />
       )}
       {error && <p className="mt-3 rounded-lg bg-bad-soft px-3 py-2 text-[12.5px] leading-relaxed text-bad">{error}</p>}
+      <div className="mt-5">
+        <ReaderModel value={reader} onChange={setReader} />
+      </div>
       <p className="mt-3 text-[12.5px] text-faint">Your resume stays on this computer; only its text goes to your AI provider, through Hermes.</p>
 
       <StepFooter back={replacing ? () => setReplacing(false) : back} backLabel={replacing ? 'Keep the current one' : 'Back'}>

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Preferences, Profile, Seniority } from '../../shared/types.ts';
-import { askJson, finishRun, startRun } from '../lib/hermes.ts';
+import { askJson, finishRun, startRun, STOPPED, stopRun } from '../lib/hermes.ts';
 import { getPreferences, getProfile, getSettings, setPreferences, setProfile } from '../lib/store.ts';
 import { clamp, oneOf, str, strArr } from './common.ts';
 
@@ -63,11 +63,25 @@ RESUME:
 ${resume.slice(0, 20000)}
 """`;
 
-export async function buildProfileFromResume(resumeText: string, fileName?: string, latexSource?: string): Promise<{ profile: Profile; preferences: Preferences }> {
+// The resume being read, so you can have it read again with another model without uploading it again.
+let latest: { text: string; fileName?: string; latexSource?: string; runId?: string } | null = null;
+
+export const canRereadResume = () => Boolean(latest);
+
+/** Stop the current read and start over with `model` (blank: the main model). */
+export function rereadResume(model?: string) {
+  if (!latest) throw new Error('Upload your resume again first.');
+  return buildProfileFromResume(latest.text, latest.fileName, latest.latexSource, model);
+}
+
+export async function buildProfileFromResume(resumeText: string, fileName?: string, latexSource?: string, model?: string): Promise<{ profile: Profile; preferences: Preferences }> {
+  if (latest?.runId) stopRun(latest.runId);
   const h = startRun('profile', 'Reading your resume');
+  const read = (latest = { text: resumeText, fileName, latexSource, runId: h.run.id });
   try {
-    h.log('Parsing resume into a structured profile');
-    const raw = await askJson<any>({ prompt: PROFILE_PROMPT(resumeText), handle: h, timeoutSec: 300, priority: 2 });
+    h.log(`Parsing resume into a structured profile${model ? ` with ${model}` : ''}`);
+    const raw = await askJson<any>({ prompt: PROFILE_PROMPT(resumeText), handle: h, timeoutSec: 300, priority: 2, model: model || undefined });
+    if (latest !== read) throw new Error(STOPPED); // a newer read replaced this one
     const profile: Profile = {
       name: str(raw.name, 120),
       email: str(raw.email, 200),

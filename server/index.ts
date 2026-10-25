@@ -7,7 +7,7 @@ import { DIST_DIR, UPLOAD_DIR } from './lib/paths.ts';
 import { addClient, toast } from './lib/events.ts';
 import * as store from './lib/store.ts';
 import { askJson, checkHermes, finishRun, getHermesStatus, listProviderModels, rateLimitedUntil, startRun, tryModel } from './lib/hermes.ts';
-import { buildProfileFromResume, extractResumeText } from './agents/profile.ts';
+import { buildProfileFromResume, canRereadResume, extractResumeText, rereadResume } from './agents/profile.ts';
 import { filterAndRank, getScoutState, runScout } from './agents/scout.ts';
 import { analyzeJob, answerQuestions, applyGapNotes, chatWithHermes, coverage, resumeText as resumePlainText, markApplied, moveJob, pauseJob, prepareApplication, refreshStaleDrafts, reorderColumn, restoreVersion, resumeJob, reviseCoverLetter, setGapNote, startDrafting } from './agents/pipeline.ts';
 import { followUpOnDiscoveries, startAutopilot } from './agents/autopilot.ts';
@@ -104,14 +104,22 @@ app.post('/api/resume', upload.single('file'), async (req, res) => {
     }
   }
   if (!text || text.trim().length < 80) return res.status(400).json({ error: "That resume looks empty — if it's a scanned PDF, paste the text instead." });
+  const model = typeof req.body?.model === 'string' ? req.body.model.trim() : '';
   // Onboarding carries on while Hermes reads; the profile and the run's outcome arrive as events.
   if (req.query.background === '1') {
     // A failure is recorded on the run, which onboarding shows in place.
-    buildProfileFromResume(text, fileName, latex).catch(() => {});
+    buildProfileFromResume(text, fileName, latex, model).catch(() => {});
     return res.json({ started: true });
   }
-  const result = await buildProfileFromResume(text, fileName, latex);
+  const result = await buildProfileFromResume(text, fileName, latex, model);
   res.json(result);
+});
+
+// Read the same resume again with another model, e.g. a faster one when the first is slow.
+app.post('/api/resume/reread', (req, res) => {
+  if (!canRereadResume()) return res.status(400).json({ error: 'Upload your resume again to read it with another model.' });
+  rereadResume(typeof req.body?.model === 'string' ? req.body.model.trim() : '').catch(() => {});
+  res.json({ started: true });
 });
 
 app.put('/api/profile', (req, res) => {

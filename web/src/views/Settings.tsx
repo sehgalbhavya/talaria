@@ -611,7 +611,7 @@ function ProviderSelect({ value, options, onChange, disabled }: { value: string;
   );
 }
 
-function ModelSelect({ value, options, onChange, disabled }: { value: string; options: string[]; onChange: (v: string) => void; disabled?: boolean }) {
+export function ModelSelect({ value, options, onChange, disabled }: { value: string; options: string[]; onChange: (v: string) => void; disabled?: boolean }) {
   const [custom, setCustom] = React.useState(false);
   const all = Array.from(new Set([value, ...options]));
   if (custom || !options.length)

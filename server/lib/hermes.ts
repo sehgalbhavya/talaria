@@ -151,6 +151,18 @@ export function resumeJobCalls(jobId: string) {
   pausedJobs.delete(jobId);
 }
 
+// ---------- stopping one run ----------
+// Ends a task's Hermes calls for good, e.g. a resume read you restarted with another model.
+export const STOPPED = 'Stopped';
+const stoppedRuns = new Set<string>();
+const runPids = new Map<number, string>();
+const isStopped = (h?: RunHandle) => Boolean(h && stoppedRuns.has(h.run.id));
+
+export function stopRun(runId: string) {
+  stoppedRuns.add(runId);
+  for (const [pid, r] of runPids) if (r === runId) killTree(pid);
+}
+
 // When the provider rate-limits us, the whole queue pauses until the reset time it reports,
 // then resumes on its own. Afterwards we run one task at a time for a while to stay under it.
 let pausedUntil = 0;
@@ -339,6 +351,7 @@ ${call.prompt}`;
   let busyRetries = 0;
   for (;;) {
     if (isJobPaused(jobId)) throw new Error(PAUSED);
+    if (isStopped(h)) throw new Error(STOPPED);
     if (call.noWait && Date.now() < pausedUntil) throw new Error(status.message || `${name} is rate-limiting requests right now.`);
     const release = await acquire(call.priority ?? 0, jobId);
     try {
@@ -347,7 +360,7 @@ ${call.prompt}`;
       const msg: string = err?.message || String(err);
       const limited = RATE_LIMIT.test(msg);
       const busy = !limited && TRANSIENT.test(msg);
-      if (isPausedError(err)) throw err;
+      if (isPausedError(err) || isStopped(h)) throw err;
       if (limited && !call.noWait && limitRetries++ < 3) {
         const wait = rateLimitWaitMs(msg);
         pauseFor(wait, call.provider);
@@ -382,9 +395,9 @@ async function runOnce(
   h: RunHandle | undefined,
 ): Promise<HermesResult> {
   const jobId = h?.run.jobId;
-  if (isJobPaused(jobId)) {
+  if (isJobPaused(jobId) || isStopped(h)) {
     release();
-    throw new Error(PAUSED);
+    throw new Error(isStopped(h) ? STOPPED : PAUSED);
   }
   if (h) {
     h.run.status = 'running';
@@ -423,6 +436,7 @@ async function runOnce(
       });
       if (child.pid) running.add(child.pid);
       if (child.pid && jobId) jobPids.set(child.pid, jobId);
+      if (child.pid && h) runPids.set(child.pid, h.run.id);
       const out: Buffer[] = [];
       let err = '';
       child.stdout.on('data', d => out.push(d));
@@ -440,8 +454,10 @@ async function runOnce(
         clearTimeout(timer);
         if (child.pid) running.delete(child.pid);
         if (child.pid) jobPids.delete(child.pid);
+        if (child.pid) runPids.delete(child.pid);
         const stdout = Buffer.concat(out).toString('utf8').trim();
         if (isJobPaused(jobId)) reject(new Error(PAUSED));
+        else if (isStopped(h)) reject(new Error(STOPPED));
         else if (code === 0 && stdout) resolve(stdout);
         else reject(new Error(cleanError(err || stdout) || `Hermes exited with code ${code}.`));
       });
