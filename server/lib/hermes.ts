@@ -169,24 +169,37 @@ function pump() {
   while (active < limit && waiting.length) waiting.shift()!.start();
 }
 
-const RATE_LIMIT = /rate.?limit|HTTP 429|too many requests/i;
+const RATE_LIMIT = /rate.?limit|HTTP 429|too many requests|RESOURCE_EXHAUSTED/i;
+// The provider is busy for a moment (Gemini's free tier says this a lot, mostly on Pro and preview models).
+const TRANSIENT = /\b50[23]\b|overloaded|\bUNAVAILABLE\b|high demand|service unavailable|temporarily unavailable/i;
+const TRANSIENT_BACKOFF_MS = [20_000, 60_000];
+const QUICK_BACKOFF_MS = 10_000; // connection tests get one short retry so they still answer fast
+const CHECK_TIMEOUT_SEC = 150;
 
-/** How long the provider wants us to wait, from Hermes's message ("resets in ~41 min", "in 2h"). */
+const PROVIDER_LABEL: Record<string, string> = { copilot: 'GitHub Copilot', anthropic: 'Anthropic', gemini: 'Google Gemini', openrouter: 'OpenRouter', openai: 'OpenAI', 'openai-codex': 'ChatGPT / Codex', nous: 'Nous Portal' };
+const providerName = (provider?: string) => {
+  const p = provider || getSettings().hermes.provider;
+  return PROVIDER_LABEL[p] || p || 'The AI provider';
+};
+
+/** How long the provider wants us to wait, from Hermes's message ("resets in ~41 min", "in 2h", "retry in 41.2s"). */
 function rateLimitWaitMs(msg: string): number {
   const mins = msg.match(/resets? in ~?(\d+)\s*min/i) || msg.match(/\(in (\d+)m\)/i);
   if (mins) return (Number(mins[1]) + 1) * 60_000;
   const hrs = msg.match(/resets? in ~?(\d+)\s*h/i) || msg.match(/\(in (\d+)h\)/i);
   if (hrs) return Number(hrs[1]) * 3_600_000 + 60_000;
+  const secs = msg.match(/retry in (\d+(?:\.\d+)?)\s*s/i);
+  if (secs) return Math.ceil(Number(secs[1])) * 1000 + 5_000;
   return 5 * 60_000;
 }
 
-function pauseFor(ms: number) {
+function pauseFor(ms: number, provider?: string) {
   const until = Date.now() + ms;
   if (until <= pausedUntil) return;
   pausedUntil = until;
   slowUntil = until + 2 * 3_600_000;
   const at = new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  setStatus({ rateLimitedUntil: new Date(until).toISOString(), message: `GitHub Copilot rate limit — paused until ${at}, then continuing automatically` });
+  setStatus({ rateLimitedUntil: new Date(until).toISOString(), message: `${providerName(provider)} rate limit — paused until ${at}, then continuing automatically` });
   if (resumeTimer) clearTimeout(resumeTimer);
   resumeTimer = setTimeout(() => ((resumeTimer = null), pump()), ms + 250);
 }
@@ -232,7 +245,7 @@ export function markRunning(h: RunHandle) {
 export async function tryModel(provider: string, model: string): Promise<{ ok: boolean; message?: string; latencyMs?: number }> {
   const t0 = Date.now();
   try {
-    const res = await callHermes({ prompt: 'Reply with exactly the word READY and nothing else.', provider, model, timeoutSec: 90, priority: 2, noWait: true });
+    const res = await callHermes({ prompt: 'Reply with exactly the word READY and nothing else.', provider, model, timeoutSec: CHECK_TIMEOUT_SEC, priority: 2, noWait: true });
     return /READY/i.test(res.text) ? { ok: true, latencyMs: Date.now() - t0 } : { ok: false, message: `Unexpected reply: ${res.text.slice(0, 120)}` };
   } catch (err: any) {
     const msg: string = err?.message || String(err);
@@ -245,8 +258,20 @@ export async function tryModel(provider: string, model: string): Promise<{ ok: b
     if (provider === 'openai-codex' && /credential|auth|log ?in|token|401|unauthori[sz]ed/i.test(msg)) {
       return { ok: false, message: `Hermes isn't signed in to ChatGPT yet. In a terminal run: hermes auth add openai-codex --type oauth — sign in in the browser window it opens, then test again.` };
     }
-    return { ok: false, message: msg };
+    return { ok: false, message: explainCheckFailure(msg, provider, model) };
   }
+}
+
+/** Turn a timeout or "overloaded" error from a connection test into something the user can act on. */
+function explainCheckFailure(msg: string, provider: string, model: string): string {
+  const slow = /timed out/i.test(msg);
+  if (!slow && !TRANSIENT.test(msg)) return msg;
+  const what = slow ? `didn't answer within ${CHECK_TIMEOUT_SEC}s` : 'is overloaded right now';
+  const detail = slow ? '' : ` (${msg.slice(0, 200)})`;
+  if (provider === 'gemini' && !/flash/i.test(model)) {
+    return `Google Gemini ${what} with ${model}. Its free tier is often busy, especially on Pro and preview models. Try a Flash model such as gemini-flash-latest, then test again.${detail}`;
+  }
+  return `${providerName(provider)} ${what} with ${model}. Test again in a minute, or pick a smaller, faster model.${detail}`;
 }
 
 export function finishRun(h: RunHandle, ok: boolean, detail?: string, error?: string) {
@@ -308,25 +333,43 @@ ${call.prompt}`;
   const profile = await ensureProfile();
   const h = call.handle;
   const jobId = h?.run.jobId;
-  for (let attempt = 0; ; attempt++) {
+  const name = providerName(call.provider);
+  const backoff = call.noWait ? [QUICK_BACKOFF_MS] : TRANSIENT_BACKOFF_MS;
+  let limitRetries = 0;
+  let busyRetries = 0;
+  for (;;) {
     if (isJobPaused(jobId)) throw new Error(PAUSED);
-    if (call.noWait && Date.now() < pausedUntil) throw new Error(status.message || 'GitHub Copilot is rate-limiting requests right now.');
+    if (call.noWait && Date.now() < pausedUntil) throw new Error(status.message || `${name} is rate-limiting requests right now.`);
     const release = await acquire(call.priority ?? 0, jobId);
     try {
       return await runOnce(call, rt, prompt, profile, settings, release, h);
     } catch (err: any) {
       const msg: string = err?.message || String(err);
-      if (isPausedError(err) || !RATE_LIMIT.test(msg) || call.noWait || attempt >= 3) throw err;
-      const wait = rateLimitWaitMs(msg);
-      pauseFor(wait);
-      const at = new Date(Date.now() + wait).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      h?.log(`GitHub Copilot rate limit — paused until ${at}, then continuing automatically`);
+      const limited = RATE_LIMIT.test(msg);
+      const busy = !limited && TRANSIENT.test(msg);
+      if (isPausedError(err)) throw err;
+      if (limited && !call.noWait && limitRetries++ < 3) {
+        const wait = rateLimitWaitMs(msg);
+        pauseFor(wait, call.provider);
+        const at = new Date(Date.now() + wait).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        h?.log(`${name} rate limit — paused until ${at}, then continuing automatically`);
+      } else if (busy && busyRetries < backoff.length) {
+        // A busy provider usually clears within a minute, so wait briefly rather than fail the task.
+        const wait = backoff[busyRetries++];
+        h?.log(`${name} is overloaded right now — trying again in ${wait / 1000}s`);
+      } else throw err;
       if (h) {
         h.run.status = 'queued';
         saveRun(h.run);
       }
+      if (busy) await waitUnlessPaused(backoff[busyRetries - 1], jobId);
     }
   }
+}
+
+async function waitUnlessPaused(ms: number, jobId?: string) {
+  const end = Date.now() + ms;
+  while (Date.now() < end && !isJobPaused(jobId)) await new Promise(r => setTimeout(r, Math.min(1000, end - Date.now())));
 }
 
 async function runOnce(
@@ -516,7 +559,7 @@ export async function checkHermes(deep = true): Promise<HermesStatus> {
     if (!deep) return status;
     const settings = getSettings().hermes;
     const t0 = Date.now();
-    const res = await callHermes({ prompt: 'Reply with exactly the word READY and nothing else.', timeoutSec: 90, priority: 2, noWait: true });
+    const res = await callHermes({ prompt: 'Reply with exactly the word READY and nothing else.', timeoutSec: CHECK_TIMEOUT_SEC, priority: 2, noWait: true });
     const ok = /READY/i.test(res.text);
     setStatus({
       ok,
@@ -534,11 +577,12 @@ export async function checkHermes(deep = true): Promise<HermesStatus> {
       setStatus({ ok: true, checking: false, installed: true, provider: getSettings().hermes.provider, model: getSettings().hermes.model });
       return status;
     }
+    const { provider, model } = getSettings().hermes;
     setStatus({
       ok: false,
       checking: false,
       installed: !runtimeError,
-      message: msg,
+      message: runtimeError ? msg : explainCheckFailure(msg, provider, model),
       provider: getSettings().hermes.provider,
       model: getSettings().hermes.model,
     });

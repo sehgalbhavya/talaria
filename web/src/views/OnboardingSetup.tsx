@@ -276,7 +276,7 @@ export function ConnectStep({ kicker, next, back }: { kicker: string; next: () =
               <Field label="Provider" hint={choice === 'other' ? 'For example: openrouter, gemini, anthropic' : undefined}>
                 <Input value={provider} disabled={choice !== 'other'} onChange={e => setProvider(e.target.value)} placeholder="e.g. openrouter" />
               </Field>
-              <Field label="Model" hint={choice === 'other' ? undefined : 'The default is fine. Change it only if you know you need to.'}>
+              <Field label="Model" hint={choice === 'other' ? 'Using Gemini? Pick a Flash model such as gemini-flash-latest. Pro and preview models are often overloaded on the free tier.' : 'The default is fine. Change it only if you know you need to.'}>
                 <Input value={model} onChange={e => setModel(e.target.value)} placeholder="e.g. gpt-4.1" />
               </Field>
             </div>
