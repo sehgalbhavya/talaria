@@ -108,11 +108,11 @@ function ensureProfile(): Promise<string | null> {
 // ---------- concurrency queue ----------
 // User-initiated work (you clicked something) jumps ahead of background autopilot work.
 
-type QueueItem = { start: () => void; priority: number; jobId?: string; cancel: () => void };
+type QueueItem = { start: () => void; priority: number; jobId?: string; provider: string; cancel: () => void };
 const waiting: QueueItem[] = [];
 let active = 0;
 
-function acquire(priority = 0, jobId?: string): Promise<() => void> {
+function acquire(priority = 0, jobId?: string, provider = getSettings().hermes.provider): Promise<() => void> {
   return new Promise((resolve, reject) => {
     const cancel = () => reject(new Error(PAUSED));
     const start = () => {
@@ -125,7 +125,7 @@ function acquire(priority = 0, jobId?: string): Promise<() => void> {
         pump();
       });
     };
-    const item = { start, priority, jobId, cancel };
+    const item = { start, priority, jobId, provider, cancel };
     const idx = waiting.findIndex(w => w.priority < priority);
     if (idx < 0) waiting.push(item);
     else waiting.splice(idx, 0, item);
@@ -163,22 +163,35 @@ export function stopRun(runId: string) {
   for (const [pid, r] of runPids) if (r === runId) killTree(pid);
 }
 
-// When the provider rate-limits us, the whole queue pauses until the reset time it reports,
-// then resumes on its own. Afterwards we run one task at a time for a while to stay under it.
+// When the provider rate-limits us, its calls pause until the reset time it reports, then resume
+// on their own. Afterwards we run one task at a time for a while to stay under it. The pause
+// belongs to that provider: switching to another one ends it, and testing another one skips it.
 let pausedUntil = 0;
+let pausedProvider = '';
 let slowUntil = 0;
 let resumeTimer: NodeJS.Timeout | null = null;
 
+const pausedFor = (provider = getSettings().hermes.provider) => Date.now() < pausedUntil && provider === pausedProvider;
+
+function endPauseIfSwitched() {
+  if (!pausedUntil || pausedProvider === getSettings().hermes.provider) return;
+  pausedUntil = slowUntil = 0;
+  if (resumeTimer) clearTimeout(resumeTimer);
+  resumeTimer = null;
+}
+
 function pump() {
+  endPauseIfSwitched();
   const t = Date.now();
-  if (t < pausedUntil) {
-    if (!resumeTimer) resumeTimer = setTimeout(() => ((resumeTimer = null), pump()), pausedUntil - t + 250);
-    return;
-  }
-  if (status.rateLimitedUntil) setStatus({ rateLimitedUntil: undefined, message: status.ok ? 'Connected' : status.message });
+  const paused = t < pausedUntil;
+  if (paused && !resumeTimer) resumeTimer = setTimeout(() => ((resumeTimer = null), pump()), pausedUntil - t + 250);
+  if (!paused && status.rateLimitedUntil) setStatus({ rateLimitedUntil: undefined, message: status.ok ? 'Connected' : status.message });
   const configured = Math.max(1, getSettings().hermes.concurrency || 1);
   const limit = t < slowUntil ? 1 : configured;
-  while (active < limit && waiting.length) waiting.shift()!.start();
+  for (let i = 0; active < limit && i < waiting.length; ) {
+    if (paused && waiting[i].provider === pausedProvider) i++;
+    else waiting.splice(i, 1)[0].start();
+  }
 }
 
 const RATE_LIMIT = /rate.?limit|HTTP 429|too many requests|RESOURCE_EXHAUSTED/i;
@@ -205,10 +218,11 @@ function rateLimitWaitMs(msg: string): number {
   return 5 * 60_000;
 }
 
-function pauseFor(ms: number, provider?: string) {
+function pauseFor(ms: number, provider = getSettings().hermes.provider) {
   const until = Date.now() + ms;
-  if (until <= pausedUntil) return;
+  if (provider === pausedProvider && until <= pausedUntil) return;
   pausedUntil = until;
+  pausedProvider = provider;
   slowUntil = until + 2 * 3_600_000;
   const at = new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   setStatus({ rateLimitedUntil: new Date(until).toISOString(), message: `${providerName(provider)} rate limit — paused until ${at}, then continuing automatically` });
@@ -216,7 +230,7 @@ function pauseFor(ms: number, provider?: string) {
   resumeTimer = setTimeout(() => ((resumeTimer = null), pump()), ms + 250);
 }
 
-export const rateLimitedUntil = () => (Date.now() < pausedUntil ? new Date(pausedUntil).toISOString() : null);
+export const rateLimitedUntil = () => (pausedFor() ? new Date(pausedUntil).toISOString() : null);
 
 export const queueDepth = () => ({ active, waiting: waiting.length });
 
@@ -352,8 +366,8 @@ ${call.prompt}`;
   for (;;) {
     if (isJobPaused(jobId)) throw new Error(PAUSED);
     if (isStopped(h)) throw new Error(STOPPED);
-    if (call.noWait && Date.now() < pausedUntil) throw new Error(status.message || `${name} is rate-limiting requests right now.`);
-    const release = await acquire(call.priority ?? 0, jobId);
+    if (call.noWait && pausedFor(call.provider || settings.provider)) throw new Error(status.message || `${name} is rate-limiting requests right now.`);
+    const release = await acquire(call.priority ?? 0, jobId, call.provider || settings.provider);
     try {
       return await runOnce(call, rt, prompt, profile, settings, release, h);
     } catch (err: any) {
@@ -589,7 +603,7 @@ export async function checkHermes(deep = true): Promise<HermesStatus> {
     const msg = err?.message || String(err);
     if (RATE_LIMIT.test(msg)) {
       // Hermes and the login are fine — the provider just wants us to slow down.
-      if (Date.now() >= pausedUntil) pauseFor(rateLimitWaitMs(msg));
+      if (!pausedFor()) pauseFor(rateLimitWaitMs(msg));
       setStatus({ ok: true, checking: false, installed: true, provider: getSettings().hermes.provider, model: getSettings().hermes.model });
       return status;
     }
