@@ -403,17 +403,19 @@ async function writeFiles(job: Job): Promise<{ resume: string; cover?: string }>
   const p = job.packet!;
   const safe = (s: string) => s.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '');
   const name = safe(p.resume.name || 'Resume');
+  // Named after the company, so the form shows at a glance that it's this job's tailored version.
+  const company = safe(job.company) || 'Application';
   let resumeBuf: Buffer | undefined;
   if (p.latex) {
     const c = await compileLatex(p.latex);
     if (c.ok) resumeBuf = c.pdf;
   }
   if (!resumeBuf) resumeBuf = await resumePdf(p.resume);
-  const resume = path.join(dir, `${name}_Resume.pdf`);
+  const resume = path.join(dir, `${name}_Resume_${company}.pdf`);
   fs.writeFileSync(resume, resumeBuf);
   let cover: string | undefined;
   if (p.coverLetter?.trim()) {
-    cover = path.join(dir, `${name}_Cover_Letter.pdf`);
+    cover = path.join(dir, `${name}_Cover_Letter_${company}.pdf`);
     fs.writeFileSync(cover, await coverLetterPdf(p.resume, p.coverLetter, job.company));
   }
   return { resume, cover };
@@ -700,7 +702,8 @@ export async function autoApply(jobId: string, opts: { dryRun?: boolean; handle?
     const unansweredRequired = fields.filter(f => f.required && (empty.has(f.id) || values[f.id] == null || values[f.id] === ''));
     for (const f of unansweredRequired) if (!missing.some(m => m.label === f.label)) missing.push({ label: f.label, question: f.label });
     filled = fields.filter(f => !empty.has(f.id) && values[f.id] != null && values[f.id] !== '').length;
-    const uploaded = Object.entries(planned).filter(([id]) => !wrongIds.has(id)).map(([id, file]) => `${fields.find(f => f.id === id)?.label || 'file'}: ${path.basename(file)}`);
+    const kindOf = (file: string) => (file === files.resume ? 'tailored resume ' : file === files.cover ? 'tailored cover letter ' : '');
+    const uploaded = Object.entries(planned).filter(([id]) => !wrongIds.has(id)).map(([id, file]) => `${fields.find(f => f.id === id)?.label || 'file'}: ${kindOf(file)}${path.basename(file)}`);
     if (uploaded.length) h.log(`Uploaded ${uploaded.join(' · ')}`);
     h.log(`Filled ${filled} of ${fields.length} fields${missing.length ? ` · ${missing.length} need you` : ''}`);
 
