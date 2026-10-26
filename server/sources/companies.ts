@@ -200,7 +200,15 @@ function sameSite(a: string, b: string) {
   }
 }
 
-function harvestLinks(html: string, base: string) {
+// Hiring platforms a job board may link out to for its postings.
+const PLATFORM_HOST = /(^|\.)(greenhouse\.io|lever\.co|ashbyhq\.com|myworkdayjobs\.com|workable\.com|smartrecruiters\.com|recruitee\.com)$/i;
+const onPlatform = (href: string) => {
+  const u = new URL(href);
+  return PLATFORM_HOST.test(u.hostname) && u.pathname.split('/').filter(Boolean).length >= 2;
+};
+
+/** Links on a page that look like single postings. platforms: also those leading to a hiring platform (job boards do). */
+export function harvestLinks(html: string, base: string, opts: { platforms?: boolean } = {}) {
   const out = new Map<string, string>();
   for (const m of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
     let href: string;
@@ -210,7 +218,8 @@ function harvestLinks(html: string, base: string) {
       continue;
     }
     const text = m[2].replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
-    if (text.length < 6 || text.length > 180 || !sameSite(href, base) || !JOB_HREF.test(href) || LIST_HREF.test(href) || href === base) continue;
+    if (text.length < 6 || text.length > 180 || href === base) continue;
+    if (!(sameSite(href, base) && JOB_HREF.test(href) && !LIST_HREF.test(href)) && !(opts.platforms && onPlatform(href))) continue;
     if (!out.has(href)) out.set(href, text);
   }
   return [...out].map(([href, text]) => ({ href, text }));

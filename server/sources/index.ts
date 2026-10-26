@@ -7,6 +7,7 @@ import { cleanHtml, domainFromUrl, formatSalary, guessRemote, htmlToText } from 
 export interface RawJob {
   source: SourceId;
   sourceId: string;
+  via?: string; // the job board you added that it came from
   url: string;
   applyUrl?: string;
   title: string;

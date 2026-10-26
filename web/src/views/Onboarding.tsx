@@ -963,7 +963,7 @@ function SourcesStep({ kicker, next, back }: Nav) {
   const save = async () => {
     setSaving(true);
     try {
-      await api.put('/api/preferences', { sources: prefs.sources, targetCompanies: prefs.targetCompanies, phd: prefs.phd });
+      await api.put('/api/preferences', { sources: prefs.sources, targetCompanies: prefs.targetCompanies, customBoards: prefs.customBoards, phd: prefs.phd });
       next();
     } finally {
       setSaving(false);
@@ -993,7 +993,7 @@ function LaunchStep({ kicker, back, go }: Nav) {
   const story = settings.onboarding?.story || {};
   const [autopilot, setAutopilot] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
-  const boards = BOARDS.filter(b => prefs.sources[b.id]).length;
+  const boards = BOARDS.filter(b => prefs.sources[b.id]).length + (prefs.customBoards || []).filter(b => b.enabled).length;
   const answered = STORY_QUESTIONS.filter(q => story[q.id]?.trim()).length;
 
   const start = async () => {

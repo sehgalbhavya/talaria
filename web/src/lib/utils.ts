@@ -70,11 +70,15 @@ export const SOURCE_LABEL: Record<SourceId, string> = {
   smartrecruiters: 'SmartRecruiters',
   recruitee: 'Recruitee',
   company_site: 'Company website',
+  custom_board: 'Your job board',
   academic: 'Academic job boards',
   hermes_web: 'Hermes web',
   linkedin: 'LinkedIn',
   manual: 'Added by you',
 };
+
+/** Where a job was found: the name of your own board when it came from one. */
+export const sourceName = (j: Pick<Job, 'source' | 'via'>) => j.via || SOURCE_LABEL[j.source];
 
 /** Hermes asked its questions and is waiting on you before writing the first draft. */
 export const awaitingInterview = (j: Job) => Boolean(j.interview && !j.interview.doneAt && !j.packet);

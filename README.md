@@ -195,7 +195,7 @@ The first time you open Talaria, a guided setup gets to know you. It takes about
 4. **Your story.** Four short questions in your own words: why you do this work, what you're proudest of, what you want next, and who you are outside work. Your cover letters are written from this. Skip any you like.
 5. **What you're after.** The roles and level you want; where and how you want to work (locations, remote, visa sponsorship, salary); and what matters to you (topics you'd love, deal-breakers, companies to skip). Hermes fills in suggestions from your resume, but never overwrites what you've chosen.
 6. **Is this you?** Check and fix what Hermes took from your resume: your details, headline, summary and skills.
-7. **Where to look.** Choose the job boards to search, and add your own sources: any company by name, or the link to its careers page. **Suggest companies** asks Hermes for ones that fit you.
+7. **Where to look.** Choose the job boards to search, and add your own sources: any company by name, or the link to its careers page. **Suggest companies** asks Hermes for ones that fit you. Under **Your job boards** you can also add any other job board by pasting its link (a niche board, a country's job site, a community's jobs page). Talaria reads its job feed or its listings, or has Hermes search within the site when neither can be read. Put `{query}` in the link where the search words go to search it once for each of your roles.
 8. **Review & start.** A summary of everything, with an **Edit** link for each part, and whether **Autopilot** should search for new matches every few hours.
 
 Then press **Start the hunt**. A short tour of the board follows, and the first jobs show up in a minute or two.

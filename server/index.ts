@@ -15,6 +15,7 @@ import { checkBeforeApply, checkLiveness } from './agents/liveness.ts';
 import { generateReport } from './agents/report.ts';
 import { coverLetterPdf, resumePdf } from './lib/resumePdf.tsx';
 import { hydrateFromUrl, verifyBoard } from './sources/index.ts';
+import { detectBoard } from './sources/boards.ts';
 import { fetchHtml, fromJsonLd, readableText, renderHtml } from './sources/jobpage.ts';
 import { cleanHtml, guessRemote, htmlToText, textToHtml } from './lib/text.ts';
 import { mountMcp } from './mcp.ts';
@@ -150,6 +151,17 @@ app.post('/api/preferences/resolve-company', async (req, res) => {
     res.json(await resolveCompany(input, typeof req.body?.name === 'string' ? req.body.name : undefined));
   } catch (err: any) {
     res.status(400).json({ error: err.message === 'NEEDS_URL' ? 'Paste the link to their jobs page.' : err.message });
+  }
+});
+
+// Add any job board by its link: how Talaria will read it (feed, listing page, or a search within it).
+app.post('/api/preferences/resolve-board', async (req, res) => {
+  const input = typeof req.body?.input === 'string' ? req.body.input.trim() : '';
+  if (!input) return res.status(400).json({ error: 'Paste the link to the job board.' });
+  try {
+    res.json(await detectBoard(input, typeof req.body?.name === 'string' ? req.body.name : undefined, store.getPreferences()));
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
   }
 });
 

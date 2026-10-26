@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { BookmarkCheck, Check, ChevronDown, FileText, Globe, GraduationCap, Loader2, Plus, Save, Sparkles, Trash2, UploadCloud, X } from 'lucide-react';
-import type { AnswerBankItem, ExperienceItem, Preferences, Profile, SourceId, TargetCompany } from '@shared/types';
+import { BookmarkCheck, Check, ChevronDown, FileText, Globe, GraduationCap, List, Loader2, Plus, Rss, Save, Search, Sparkles, Trash2, UploadCloud, X } from 'lucide-react';
+import type { AnswerBankItem, CustomBoard, ExperienceItem, Preferences, Profile, SourceId, TargetCompany } from '@shared/types';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import { cn, timeAgo } from '@/lib/utils';
@@ -439,6 +439,104 @@ const PLATFORM: Record<TargetCompany['ats'], string> = {
 
 type Suggestion = { name: string; url: string; why: string };
 
+const HOW: Record<CustomBoard['how'], { label: string; icon: React.ReactNode }> = {
+  feed: { label: 'Read from its feed', icon: <Rss className="size-3.5" /> },
+  page: { label: 'Read from its listings', icon: <List className="size-3.5" /> },
+  search: { label: 'Searched by Hermes', icon: <Search className="size-3.5" /> },
+};
+
+/** Job boards you add yourself: any site that lists jobs, searched alongside the built-in ones. */
+function CustomBoards({ prefs, onChange }: { prefs: Preferences; onChange: (p: Partial<Preferences>) => void }) {
+  const boards = prefs.customBoards || [];
+  const webSearch = useApp(s => s.settings?.hermes.webSearch);
+  const [input, setInput] = React.useState('');
+  const [adding, setAdding] = React.useState(false);
+  const set = (customBoards: CustomBoard[]) => onChange({ customBoards });
+
+  // Talaria works out how to read the board and how many jobs it lists; you still press Save.
+  const add = async () => {
+    if (!input.trim()) return;
+    setAdding(true);
+    try {
+      const { board: b, count } = await api.post<{ board: CustomBoard; count: number }>('/api/preferences/resolve-board', { input });
+      set([...boards.filter(x => x.url !== b.url), b]);
+      toast.success(
+        b.how === 'feed'
+          ? `${b.name}: Talaria reads its job feed (${count} jobs in it now)`
+          : b.how === 'page'
+            ? `${b.name}: ${count} job links on the page. Talaria reads the ones that match your roles.`
+            : `${b.name}: its listings can't be read directly, so Hermes searches the site for your roles${webSearch ? '' : ' (turn on web search in Settings)'}.`,
+      );
+      setInput('');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl bg-card p-5 shadow-card">
+      <div className="text-[14px] font-semibold text-ink">Your job boards</div>
+      <div className="mt-0.5 max-w-xl text-[12.5px] leading-relaxed text-muted">
+        Add any site where jobs in your field get posted: a niche board, a country's job site, a community's jobs page. Paste its link and Talaria works out how to read it: its job feed, its listings, or a Hermes search within the site.
+      </div>
+
+      {boards.length > 0 ? (
+        <div className="mt-4 divide-y divide-line-2 overflow-hidden rounded-xl border border-line">
+          {boards.map(b => (
+            <div key={b.id} className={cn('flex items-center gap-3 px-3.5 py-2.5', !b.enabled && 'opacity-60')}>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 text-[13px] font-semibold text-ink">
+                  <input
+                    aria-label="Board name"
+                    title="Rename"
+                    value={b.name}
+                    onChange={e => set(boards.map(x => (x.id === b.id ? { ...x, name: e.target.value } : x)))}
+                    onBlur={() => !b.name.trim() && set(boards.map(x => (x.id === b.id ? { ...x, name: b.domain } : x)))}
+                    size={Math.max(4, b.name.length)}
+                    className="min-w-0 truncate rounded bg-transparent px-1 -mx-1 outline-none hover:bg-ink/[0.05] focus:bg-ink/[0.05]"
+                  />
+                  <a href={b.url.replaceAll('{query}', encodeURIComponent(prefs.roles[0] || ''))} target="_blank" rel="noopener noreferrer" className="truncate text-[11.5px] font-normal text-accent hover:underline">
+                    {b.domain}
+                  </a>
+                </div>
+                <div className="mt-0.5 flex items-center gap-1 text-[11.5px] text-faint">
+                  {HOW[b.how].icon}
+                  {HOW[b.how].label}
+                  {b.url.includes('{query}') && ' · once for each of your roles'}
+                </div>
+              </div>
+              <Switch checked={b.enabled} onChange={enabled => set(boards.map(x => (x.id === b.id ? { ...x, enabled } : x)))} label={`Search ${b.name}`} />
+              <button aria-label={`Remove ${b.name}`} onClick={() => set(boards.filter(x => x.id !== b.id))} className="rounded p-1 text-faint hover:bg-ink/10 hover:text-ink">
+                <X className="size-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 rounded-xl border border-dashed border-line px-3.5 py-3 text-[12.5px] leading-relaxed text-muted">
+          No boards of your own yet. Paste the link to one below, for example its page of jobs in your field.
+        </p>
+      )}
+
+      <form
+        onSubmit={e => {
+          e.preventDefault();
+          add();
+        }}
+        className="mt-4 flex gap-2"
+      >
+        <Input className="flex-1" value={input} onChange={e => setInput(e.target.value)} placeholder="Job board link, e.g. weworkremotely.com/categories/remote-design-jobs" />
+        <Button type="submit" variant="secondary" loading={adding} disabled={!input.trim() || adding} icon={<Plus className="size-4" />}>
+          Add
+        </Button>
+      </form>
+      <p className="mt-2 text-[11.5px] leading-relaxed text-faint">
+        Best is the board's page already filtered to your field or location. To search it for each of your roles, put <code className="rounded bg-ink/[0.06] px-1 text-ink-2">{'{query}'}</code> where the search words go, e.g. <span className="text-ink-2">example.com/jobs?q={'{query}'}</span>.
+      </p>
+    </div>
+  );
+}
+
 const PHD_FIELD_IDEAS = ['Haptics', 'XR / virtual and augmented reality', 'Automotive HMI', 'Generative UI', 'Human-computer interaction', 'Multisensory interaction', 'Human-AI interaction', 'Interaction design'];
 
 /** PhD positions: their own search, in your research fields, on the PhDs side of the board. */
@@ -526,6 +624,8 @@ export function SourcesEditor({ prefs, onChange }: { prefs: Preferences; onChang
           </label>
         ))}
       </div>
+
+      <CustomBoards prefs={prefs} onChange={onChange} />
 
       <PhdSettings prefs={prefs} onChange={onChange} />
 

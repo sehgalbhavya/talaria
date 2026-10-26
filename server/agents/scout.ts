@@ -1,4 +1,5 @@
-import type { Job, Preferences, Profile, ScoutState, SourceId, TargetCompany } from '../../shared/types.ts';
+import type { CustomBoard, Job, Preferences, Profile, ScoutState, SourceId, TargetCompany } from '../../shared/types.ts';
+import { readBoard } from '../sources/boards.ts';
 import { companyBoard, readPosting } from '../sources/companies.ts';
 import { phdSearch } from './phd.ts';
 import { wantsJobs } from '../../shared/track.ts';
@@ -325,6 +326,34 @@ export async function companySiteSearch(sites: TargetCompany[], prefs: Preferenc
   return out;
 }
 
+// ---------- job boards you added, searched within ----------
+
+const BOARD_PROMPT = (boards: CustomBoard[], roles: string[], prefs: string) => `You are a job scout. Use your web_search tool to find CURRENTLY OPEN postings for these roles on these job boards.
+
+ROLES: ${roles.join(', ')}
+PREFERENCES
+${prefs}
+
+JOB BOARDS (search each one, e.g. "site:<domain> <role>" and "site:<domain> <role> <location>")
+${boards.map(b => `- ${b.name}: ${b.domain}`).join('\n')}
+
+Return ONLY a JSON array of individual posting pages (one job per URL, on the board itself or the employer's page it links to), at most 5 per board:
+[{"title": string, "company": string, "location": string, "url": string, "board": string}]
+"company" is the employer, never the job board. Skip listing/search pages and anything expired. If web search is unavailable, return [].`;
+
+export async function boardSiteSearch(boards: CustomBoard[], prefs: Preferences, h: RunHandle): Promise<RawJob[]> {
+  const items = await askJson<any[]>({ prompt: BOARD_PROMPT(boards, prefs.roles.length ? prefs.roles : ['designer'], preferencesBrief(prefs)), toolsets: ['web'], handle: h, timeoutSec: 420 });
+  const out: RawJob[] = [];
+  for (const it of (Array.isArray(items) ? items : []).slice(0, 5 * boards.length)) {
+    const url = str(it?.url, 500);
+    if (!/^https?:\/\//.test(url)) continue;
+    const board = boards.find(b => b.name.toLowerCase() === str(it.board, 120).toLowerCase()) || boards.find(b => url.includes(b.domain));
+    const job = (await S.hydrateFromUrl(url).catch(() => null)) || (await readPosting(url, { title: str(it.title, 200), company: str(it.company, 160), location: str(it.location, 200), source: 'custom_board' }).catch(() => null));
+    if (job) out.push({ ...job, via: board?.name || boards[0].name });
+  }
+  return out;
+}
+
 // ---------- orchestration ----------
 
 function searchQueries(prefs: Preferences): string[] {
@@ -392,6 +421,19 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
         },
       });
     }
+    // Job boards you added: read from their feed or listing page, or searched within when neither works.
+    const needBoardSearch: CustomBoard[] = [];
+    for (const b of prefs.customBoards || []) {
+      if (!b.enabled) continue;
+      tasks.push({
+        id: b.name,
+        p: async () => {
+          const r = await readBoard(b, prefs);
+          if (r.needsSearch) needBoardSearch.push(b);
+          return r.jobs;
+        },
+      });
+    }
 
     h.log(`Querying ${tasks.length} boards for: ${queries.join(', ')}`);
     const webPromise =
@@ -431,14 +473,14 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
     );
     const boardJobs = settled.flat();
 
-    // Companies whose own site lists nothing Talaria can read directly get a web search within that site.
-    const sitePromise =
-      needSiteSearch.length && settings.hermes.webSearch
+    // Companies and boards whose own pages list nothing Talaria can read directly get a web search within that site.
+    const searchWithin = (title: string, names: string[], search: (sh: RunHandle) => Promise<RawJob[]>) =>
+      names.length && settings.hermes.webSearch
         ? (async () => {
-            const sh = startRun('hermes_web', `Searching ${needSiteSearch.length} company website${needSiteSearch.length === 1 ? '' : 's'}`);
+            const sh = startRun('hermes_web', title);
             try {
-              sh.log(needSiteSearch.map(c => c.name).join(', '));
-              const jobs = await companySiteSearch(needSiteSearch, prefs, sh);
+              sh.log(names.join(', '));
+              const jobs = await search(sh);
               finishRun(sh, true, `${jobs.length} postings found`);
               return jobs;
             } catch (err: any) {
@@ -447,6 +489,16 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
             }
           })()
         : Promise.resolve([] as RawJob[]);
+    const sitePromise = searchWithin(
+      `Searching ${needSiteSearch.length} company website${needSiteSearch.length === 1 ? '' : 's'}`,
+      needSiteSearch.map(c => c.name),
+      sh => companySiteSearch(needSiteSearch, prefs, sh),
+    );
+    const boardPromise = searchWithin(
+      `Searching ${needBoardSearch.length} of your job board${needBoardSearch.length === 1 ? '' : 's'}`,
+      needBoardSearch.map(b => b.name),
+      sh => boardSiteSearch(needBoardSearch, prefs, sh),
+    );
     const candidates = filterAndRank(boardJobs, prefs, profile);
     h.log(`${boardJobs.length} postings → ${candidates.length} pass your filters`);
 
@@ -484,7 +536,7 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
           quick: s ? { score: s.score, reason: s.reason, at: ts } : undefined,
           questions: [],
           work: {},
-          timeline: [{ at: ts, text: `Found on ${sourceLabel(c.source)}`, kind: 'agent' }],
+          timeline: [{ at: ts, text: `Found on ${c.via || sourceLabel(c.source)}`, kind: 'agent' }],
           notes: '',
           starred: false,
           createdAt: ts,
@@ -552,11 +604,11 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
       progress();
       await scoreAll(webCandidates, 8);
     }
-    const siteJobs = await sitePromise;
+    const siteJobs = [...(await sitePromise), ...(await boardPromise)];
     if (siteJobs.length) {
       const siteCandidates = filterAndRank(siteJobs, prefs, profile, { trustTitles: true }).filter(c => !known.has(dedupeKey(c.company, c.title))).slice(0, 12);
       siteCandidates.forEach(c => known.add(dedupeKey(c.company, c.title)));
-      h.log(`Company websites: ${siteJobs.length} postings → ${siteCandidates.length} new candidates`);
+      h.log(`Searches within websites and your boards: ${siteJobs.length} postings → ${siteCandidates.length} new candidates`);
       total += siteCandidates.length;
       progress();
       await scoreAll(siteCandidates);
@@ -601,6 +653,7 @@ export function sourceLabel(s: SourceId) {
       smartrecruiters: 'SmartRecruiters',
       recruitee: 'Recruitee',
       company_site: 'the company website',
+      custom_board: 'one of your job boards',
       academic: 'an academic job board',
       hermes_web: 'Hermes web search',
       linkedin: 'LinkedIn',

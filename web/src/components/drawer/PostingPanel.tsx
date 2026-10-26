@@ -1,6 +1,6 @@
 import { ArrowUpRight, Briefcase, CalendarDays, Globe2, MapPin, Wallet } from 'lucide-react';
 import type { Job } from '@shared/types';
-import { fmtDate, SOURCE_LABEL } from '@/lib/utils';
+import { fmtDate, sourceName } from '@/lib/utils';
 import { remoteLabel } from '../JobCard';
 
 export function PostingPanel({ job }: { job: Job }) {
@@ -28,7 +28,7 @@ export function PostingPanel({ job }: { job: Job }) {
         <a href={job.applyUrl || job.url} target="_blank" rel="noopener noreferrer" className="group bg-card px-4 py-3 transition-colors hover:bg-panel">
           <div className="text-[11.5px] font-medium text-faint">Source</div>
           <div className="mt-1 flex items-center gap-1 text-[13.5px] font-medium text-accent">
-            {SOURCE_LABEL[job.source]}
+            {sourceName(job)}
             <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </div>
         </a>

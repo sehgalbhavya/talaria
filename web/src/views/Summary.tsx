@@ -5,7 +5,7 @@ import type { Job, Report } from '@shared/types';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import { openJob } from '@/lib/router';
-import { cn, fitScore, fmtDate, SOURCE_LABEL, STATUS_META, timeAgo } from '@/lib/utils';
+import { cn, fitScore, fmtDate, sourceName, STATUS_META, timeAgo } from '@/lib/utils';
 import { Button, Card, EmptyState, Menu, MenuContent, MenuItem, MenuTrigger, SectionTitle, Segmented } from '@/components/ui';
 import { CompanyLogo, ScoreRing } from '@/components/brand';
 import { Markdown } from '@/components/Markdown';
@@ -311,7 +311,7 @@ function ApplicationsTable({ rows }: { rows: Job[] }) {
                       <ScoreRing score={fitScore(j)} size={30} stroke={2.5} />
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-[12.5px] text-muted">{SOURCE_LABEL[j.source]}</td>
+                  <td className="px-4 py-3 text-[12.5px] text-muted">{sourceName(j)}</td>
                 </tr>
               );
             })}

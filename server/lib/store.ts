@@ -32,6 +32,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   excludeKeywords: [],
   excludeCompanies: [],
   targetCompanies: [], // yours to choose: add them, or let Hermes suggest some that fit your profile
+  customBoards: [], // job boards you add yourself, alongside the built-in ones
   sources: {
     remotive: true,
     remoteok: true,

@@ -3,7 +3,7 @@ import { AlertTriangle, ArrowRight, Check, CircleHelp, Clock, Mail, MapPin, Paus
 import type { ArchiveReason, Job } from '@shared/types';
 import { isStaleDraft, resumeHash } from '@shared/resume';
 import { jobTrack } from '@shared/track';
-import { awaitingInterview, cn, fitScore, fmtDate, isWorking, pendingQuestions, SOURCE_LABEL, timeAgo, workingStep } from '@/lib/utils';
+import { awaitingInterview, cn, fitScore, fmtDate, isWorking, pendingQuestions, sourceName, timeAgo, workingStep } from '@/lib/utils';
 import { CompanyLogo, ScoreRing } from './brand';
 import { jobActions, moveJob, useApp } from '@/lib/store';
 import { Tooltip } from './ui';
@@ -208,7 +208,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
     return (
       <div className="mt-3 flex h-6 items-center justify-between text-[11.5px] text-faint">
         <span className="truncate transition-opacity group-hover:opacity-0">
-          {SOURCE_LABEL[job.source]}
+          {sourceName(job)}
           {job.postedAt ? ` · ${timeAgo(job.postedAt)}` : ''}
         </span>
         <div className="absolute right-3 bottom-3 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">

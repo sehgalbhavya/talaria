@@ -5,7 +5,7 @@ import { Archive, ArrowRight, Check, ExternalLink, Link2, Mail, MapPin, Messages
 import type { Job, JobStatus } from '@shared/types';
 import { jobActions, moveJob, useApp } from '@/lib/store';
 import { closeJob, navigate } from '@/lib/router';
-import { canAutoApply, cn, copyText, fitScore, fmtDate, isWorking, pendingQuestions, SOURCE_LABEL, STATUS_META, timeAgo } from '@/lib/utils';
+import { canAutoApply, cn, copyText, fitScore, fmtDate, isWorking, pendingQuestions, sourceName, STATUS_META, timeAgo } from '@/lib/utils';
 import { Badge, Button, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, Sheet, Tooltip } from './ui';
 import { CompanyLogo, ScoreRing } from './brand';
 import { FitPanel } from './drawer/FitPanel';
@@ -179,7 +179,7 @@ function DrawerBody({ job, tab: tabParam }: { job: Job; tab: Tab | null }) {
                 {job.employmentType && <Badge>{job.employmentType}</Badge>}
                 {job.seniority && <Badge>{job.seniority}</Badge>}
                 <Badge className="bg-transparent px-0 text-faint dark:bg-transparent">
-                  via {SOURCE_LABEL[job.source]}
+                  via {sourceName(job)}
                   {job.postedAt ? ` · posted ${timeAgo(job.postedAt, false)}` : ''}
                 </Badge>
               </div>

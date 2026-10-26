@@ -35,6 +35,7 @@ export type SourceId =
   | 'smartrecruiters'
   | 'recruitee'
   | 'company_site'
+  | 'custom_board'
   | 'academic'
   | 'hermes_web'
   | 'linkedin'
@@ -111,6 +112,18 @@ export interface TargetCompany {
   domain?: string;
 }
 
+/** A job board you added: any site that lists jobs. Read from its RSS feed, from its listing page, or, when
+ * neither gives Talaria anything to read, searched by Hermes within that site. */
+export interface CustomBoard {
+  id: string;
+  name: string;
+  url: string; // the page you pasted; {query} in it is replaced by each of your roles
+  how: 'feed' | 'page' | 'search';
+  feedUrl?: string;
+  domain: string;
+  enabled: boolean;
+}
+
 export interface Preferences {
   roles: string[];
   seniority: Seniority[];
@@ -123,6 +136,7 @@ export interface Preferences {
   excludeKeywords: string[];
   excludeCompanies: string[];
   targetCompanies: TargetCompany[];
+  customBoards: CustomBoard[];
   sources: Partial<Record<SourceId, boolean>>;
   maxAgeDays: number;
   phd?: { enabled: boolean; fields: string[]; countries: string[] }; // PhD positions: research fields and where
@@ -270,6 +284,7 @@ export interface Job {
   id: string;
   source: SourceId;
   sourceId: string;
+  via?: string; // the job board you added that it was found on
   url: string;
   applyUrl?: string;
   title: string;
