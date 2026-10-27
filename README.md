@@ -10,7 +10,7 @@ You don't need to know anything about AI or programming to use it. This guide st
 
 ### Already comfortable with a terminal?
 
-You need [Node.js](https://nodejs.org) 20.19+ and [Hermes Agent](https://github.com/NousResearch/hermes-agent) signed in to an AI provider (step 4 below). Then:
+You need [Node.js](https://nodejs.org) 20.19+ and [Hermes Agent](https://github.com/NousResearch/hermes-agent) signed in to an AI provider (step 3 below). On Windows, double-clicking `Talaria.bat` installs both for you. Otherwise:
 
 ```bash
 git clone https://github.com/sehgalbhavya/talaria.git
@@ -51,7 +51,7 @@ Open http://127.0.0.1:5178 and follow the setup screen. Everyone else, read on.
 
 ## What you need before you start
 
-1. **A computer** with an internet connection. Windows 10/11 is the best-tested. Mac and Linux should work too (see the notes in step 5).
+1. **A computer** with an internet connection. Windows 10/11 is the best-tested. Mac and Linux should work too (see the notes in step 2).
 2. **An AI account you already pay for or get free.** Pick **one**:
    - a **ChatGPT** plan (Plus, Pro or Business), which also covers Codex, **or**
    - **GitHub Copilot** (free for verified students and teachers), **or**
@@ -63,21 +63,7 @@ Open http://127.0.0.1:5178 and follow the setup screen. Everyone else, read on.
 
 ## Setup, step by step
 
-### Step 1: Install Node.js
-
-1. Go to **https://nodejs.org**.
-2. Click the big **LTS** download button and run the installer. Click *Next* through all the screens and keep the defaults.
-3. **Restart your computer** (or at least close and reopen any terminal windows).
-
-To check it worked, open a terminal (Windows: press the **Windows key**, type `PowerShell`, press Enter) and run:
-
-```bash
-node --version
-```
-
-You should see a number like `v22.11.0`. Version 20.19 or higher is fine.
-
-### Step 2: Download Talaria
+### Step 1: Download Talaria
 
 **Easiest way (no extra software):**
 
@@ -91,35 +77,52 @@ You should see a number like `v22.11.0`. Version 20.19 or higher is fine.
 git clone https://github.com/sehgalbhavya/talaria.git
 ```
 
-### Step 3: Install Hermes (the AI assistant program)
+### Step 2: Install everything and start Talaria
 
-Open a terminal and paste **one** line, depending on your computer, then press Enter and wait until it finishes (a few minutes).
+#### Windows: one double-click
 
-**Windows (PowerShell):**
+Open the Talaria folder and **double-click `Talaria.bat`**.
 
-```powershell
-iex (irm https://hermes-agent.nousresearch.com/install.ps1)
-```
+The first time, a **Set up Talaria** window opens. It checks your computer and lists what Talaria needs, what each part is for and how big it is:
 
-**Mac or Linux:**
+| Part | What it's for | Size |
+| --- | --- | --- |
+| **Node.js** | Runs Talaria. A private copy goes inside the Talaria folder; nothing else on your computer changes. | about 30 MB |
+| **Hermes** | The AI assistant that reads your resume, scores jobs and writes your applications. Installed by its own official installer. | about 1 GB |
+| **Talaria's packages** | The building blocks Talaria is made of. | about 200 MB |
+| **Browser for applications** *(optional, ticked)* | A separate browser Talaria uses to fill in and submit application forms. | about 150 MB |
+| **MiKTeX** *(optional)* | Only if your resume is a LaTeX file: keeps its exact design. | about 250 MB |
 
-```bash
-curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
-```
+Anything you already have shows a green tick and is left alone. **Nothing is downloaded until you press Install.** Then two progress bars show which step it's on and how far the current download is. **Show details** shows every message as it happens; the same is saved in `data\setup-log.txt`. Installing Hermes takes longest, often 5 to 15 minutes. No admin rights are needed, except for MiKTeX, where Windows may ask you to allow it. If something fails, the window tells you what happened, and **Try again** carries on from that step.
 
-**Close the terminal and open a new one**, then check it worked:
+When it says *You're ready to go*, press **Start Talaria**. A black window appears and fills with text; that's normal. When it's ready, your web browser opens Talaria at **http://127.0.0.1:5178**.
 
-```bash
-hermes --version
-```
-
-You should see something like `Hermes Agent v0.21...`.
+**Keep the black window open while you use Talaria.** Closing it stops the app. Next time, double-click `Talaria.bat` again and you're back where you left off; the setup window only comes back if something it needs has gone missing. To add MiKTeX or the browser for applications later, double-click **Run setup** in the `setup` folder.
 
 > **Windows antivirus warning?** Some antivirus programs wrongly flag a file called `uv.exe` that Hermes installs. It's a safe, well-known tool. See the [Hermes README](https://github.com/NousResearch/hermes-agent) if yours complains.
 
-### Step 4: Sign in to your AI account
+#### Mac or Linux: two installs, then one command
 
-You only do this once. Pick the option that matches what you have.
+1. Install **Node.js**: go to **https://nodejs.org**, download the **LTS** version and run the installer (version 20.19 or higher).
+2. Install **Hermes** by pasting this into a terminal, then close the terminal and open a new one:
+
+   ```bash
+   curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+   ```
+
+3. Open a terminal *inside the Talaria folder* and run:
+
+   ```bash
+   ./talaria.sh
+   ```
+
+   It installs Talaria's packages on the first run, starts Talaria and opens your browser at http://127.0.0.1:5178. (If you see *permission denied*, run `chmod +x talaria.sh` once first.)
+
+Optional extras: for submitting applications, run `npx playwright install chromium` in the Talaria folder (about 150 MB). To keep a LaTeX resume's exact design, install **TeX Live** (or MacTeX on a Mac). Talaria is built and tested on Windows, so please [report any Mac or Linux problems](https://github.com/sehgalbhavya/talaria/issues).
+
+### Step 3: Sign in to your AI account
+
+You only do this once, in a terminal (Windows: press the **Windows key**, type `PowerShell`, press Enter). Pick the option that matches what you have.
 
 #### Option A: ChatGPT or Codex plan
 
@@ -157,35 +160,9 @@ hermes model
 
 It shows a menu. Pick your provider and paste your key when asked. Keep your key private. Never share it or post it online.
 
-> You can also do this step later, from inside Talaria's setup screen (step 6). It shows the same commands with a **Copy** button and a **Test the connection** button.
+> You can also do this step later, from inside Talaria's setup screen (step 4). It shows the same commands with a **Copy** button and a **Test the connection** button.
 
-### Step 5: Start Talaria
-
-**Windows:** open the Talaria folder and **double-click `Talaria.bat`**.
-
-The first time it installs everything it needs, which takes a few minutes. A black window appears and fills with text. That's normal. When it's ready, your web browser opens Talaria automatically at **http://127.0.0.1:5178**.
-
-**Keep the black window open while you use Talaria.** Closing it stops the app. Next time, double-click `Talaria.bat` again and you're back where you left off.
-
-**Mac or Linux:** open a terminal *inside the Talaria folder* and run:
-
-```bash
-./talaria.sh
-```
-
-It does the same as `Talaria.bat`: installs on first run, builds, starts the server and opens your browser at http://127.0.0.1:5178. (If you see *permission denied*, run `chmod +x talaria.sh` once first.) Talaria is built and tested on Windows, so please [report any Mac or Linux problems](https://github.com/sehgalbhavya/talaria/issues).
-
-#### Optional extras (you can add these any time)
-
-- **Submitting applications for you** needs a small browser download (about 150 MB). Run this in the Talaria folder, then restart Talaria:
-
-  ```bash
-  npx playwright install chromium
-  ```
-
-- **Keeping your LaTeX resume's exact design** needs a LaTeX program. Install **MiKTeX** from https://miktex.org (Windows) or **TeX Live** (Mac and Linux). If your resume is a PDF or Word file, you can skip this.
-
-### Step 6: First-time setup in Talaria
+### Step 4: First-time setup in Talaria
 
 The first time you open Talaria, a guided setup gets to know you. It takes about 10 minutes, and if you close the window halfway it picks up where you left off.
 
@@ -248,16 +225,17 @@ Use **All / Jobs / PhDs** at the top of the board to see one kind or both.
 
 | Problem | What to do |
 | --- | --- |
-| **`node` is not recognized** | Close the terminal and open a new one. If it still fails, restart your computer, or reinstall Node.js (step 1). |
-| **`hermes` is not recognized** | Close the terminal and open a new one. If it still fails, run the Hermes install line (step 3) again. |
+| **`node` is not recognized** | On Windows, double-click `Talaria.bat`: its setup window installs Node.js. On Mac or Linux, close the terminal and open a new one, or reinstall Node.js (step 2). |
+| **`hermes` is not recognized** | Close the terminal and open a new one. If it still fails, double-click `Talaria.bat` (Windows) or run the Hermes install line (step 2) again. |
+| **Setup stopped with an error** | Press **Try again**. If it keeps failing, open `data\setup-log.txt` in the Talaria folder: the last lines say what went wrong. |
 | **The black window closes right away** | Open a terminal in the Talaria folder and run `npm install`, then `npm start`. Read the message it prints. |
 | **The page says "Waiting for the Talaria server…"** | The black window was closed or is still starting. Reopen `Talaria.bat` and wait a minute. |
 | **"Test the connection" fails for ChatGPT/Codex** | Run `hermes auth add openai-codex --type oauth` again and finish the browser sign-in. |
 | **"Test the connection" fails for Copilot** | Run `gh auth login` again, and check Copilot is switched on at github.com/settings/copilot. The model may also need enabling there. |
 | **Answers are very slow or paused** | Your AI plan's limit was reached. Talaria pauses and retries when it resets. You can switch models in **Settings**. |
 | **Resume won't upload** | If it's a scanned PDF, paste the text instead. Photos of text can't be read. |
-| **LaTeX resume won't compile** | Install MiKTeX (see optional extras) and restart Talaria. |
-| **Applications won't submit** | Run `npx playwright install chromium`, then restart. Then check **Settings → Applying → Submit applications for me** is on. |
+| **LaTeX resume won't compile** | Install MiKTeX: on Windows, open the `setup` folder, double-click **Run setup** and switch MiKTeX on. Or get it from https://miktex.org. Then restart Talaria. |
+| **Applications won't submit** | The browser for applications may be missing: on Windows, double-click **Run setup** in the `setup` folder and switch it on (or run `npx playwright install chromium` in the Talaria folder), then restart. Then check **Settings → Applying → Submit applications for me** is on. |
 | **Port 5178 is already in use** | Talaria is probably already running in another window. Close it, or open http://127.0.0.1:5178. |
 | **Something else is wrong** | Open the **Activity** page in Talaria. It shows what every Hermes task did and any error it hit. |
 

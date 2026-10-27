@@ -1,4 +1,6 @@
 node_modules/
+# Talaria's own copy of Node.js, installed by setup/setup.ps1
+/runtime/
 dist/
 *.log
 .DS_Store

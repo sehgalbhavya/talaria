@@ -11,6 +11,22 @@ if %errorlevel%==0 (
   exit /b 0
 )
 
+rem The first time, or when something Talaria needs is missing, a setup window lists it and installs it
+rem once you press Install. When everything is in place this returns straight away.
+echo Checking what Talaria needs...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup\setup.ps1"
+if errorlevel 1 (
+  echo.
+  echo Setup didn't finish, so Talaria can't start yet. Double-click Talaria.bat to pick it up again.
+  echo What happened is saved in data\setup-log.txt.
+  pause
+  exit /b 1
+)
+
+rem Talaria's own copy of Node.js (from setup) and Hermes come first.
+if exist "%~dp0runtime\node\node.exe" set "PATH=%~dp0runtime\node;%PATH%"
+if exist "%LOCALAPPDATA%\hermes\bin\hermes.exe" set "PATH=%LOCALAPPDATA%\hermes\bin;%PATH%"
+
 rem Install packages the first time, and again whenever an update changed them
 rem (package-lock.json newer than the last install). npm ci installs exactly what the
 rem lockfile says and never edits tracked files, so the next update still pulls cleanly.
