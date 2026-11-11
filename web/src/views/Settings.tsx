@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { WavRecorder } from '@/lib/recorder';
 import { AIConnect, MODEL_HINT } from '@/components/AIConnect';
 import { AI_PROVIDERS, aiProviderLabel } from '@shared/aiProviders';
+import { aiName } from '@/lib/ai';
 
 const SECTIONS = [
   { id: 'general', label: 'General' },
@@ -173,12 +174,12 @@ export function SettingsView() {
                   . Slower, but finds roles beyond the job boards.
                 </div>
               </div>
-              <Switch checked={h.webSearch} onChange={webSearch => save({ ai: { ...h, webSearch } }, webSearch ? 'The AI can search the web' : "The AI won't search the web")} label="Search the web" />
+              <Switch checked={h.webSearch} onChange={webSearch => save({ ai: { ...h, webSearch } }, webSearch ? `${aiName()} can search the web` : `${aiName()} won't search the web`)} label="Search the web" />
             </div>
           </Card>
         </PageSectionBlock>
 
-        <PageSectionBlock id="automation" title="Automation" desc="How much Hermes does on its own, from least to most hands-off. Nothing is ever submitted unless you turn on the last one.">
+        <PageSectionBlock id="automation" title="Automation" desc={`How much ${aiName()} does on its own, from least to most hands-off. Nothing is ever submitted unless you turn on the last one.`}>
           <Card className="divide-y divide-line-2">
             <Row step={1} title="Search automatically" desc={`Scouts for new jobs every ${ap.scoutEveryHours} hours while Talaria is running.${ap.lastScoutAt ? ` Last search ${timeAgo(ap.lastScoutAt, false)}.` : ''}`}>
               <div className="flex items-center gap-3">
@@ -186,21 +187,21 @@ export function SettingsView() {
                 <Switch checked={ap.enabled} onChange={enabled => save({ autopilot: { ...ap, enabled } }, enabled ? 'Autopilot on' : 'Autopilot off')} label="Search automatically" />
               </div>
             </Row>
-            <Row step={2} title="Pre-analyze promising jobs" desc="Hermes writes the full fit analysis for new jobs that score at least this high, so it's ready when you open them.">
+            <Row step={2} title="Pre-analyze promising jobs" desc={`${aiName()} writes the full fit analysis for new jobs that score at least this high, so it's ready when you open them.`}>
               <Segmented size="sm" value={String(ap.autoAnalyzeAbove)} onChange={v => save({ autopilot: { ...ap, autoAnalyzeAbove: Number(v) } })} options={['60', '70', '80', '101'].map(v => ({ value: v, label: v === '101' ? 'Off' : `${v}+` }))} />
             </Row>
             <Row
               step={3}
               title="Ask me before drafting"
-              desc="When you hand a job to Hermes, it first asks you a few questions (why this company, what to lead with, details your resume doesn't show) and drafts from your answers. Turn off to have Hermes draft straight away."
+              desc={`When you hand a job to ${aiName()}, it first asks you a few questions (why this company, what to lead with, details your resume doesn't show) and drafts from your answers. Turn off to have ${aiName()} draft straight away.`}
             >
               <Switch
                 checked={settings.apply?.interviewFirst !== false}
-                onChange={interviewFirst => save({ apply: { ...settings.apply, interviewFirst } }, interviewFirst ? 'Hermes will ask before drafting' : 'Hermes will draft straight away')}
+                onChange={interviewFirst => save({ apply: { ...settings.apply, interviewFirst } }, interviewFirst ? `${aiName()} will ask before drafting` : `${aiName()} will draft straight away`)}
                 label="Ask me first"
               />
             </Row>
-            <Row step={4} title="Auto-prepare top matches" desc="Hermes drafts full applications for the very best matches on its own. They still wait in “Needs you”.">
+            <Row step={4} title="Auto-prepare top matches" desc={`${aiName()} drafts full applications for the very best matches on its own. They still wait in “Needs you”.`}>
               <Segmented
                 size="sm"
                 value={ap.autoPrepareAbove == null ? 'off' : String(ap.autoPrepareAbove)}
@@ -461,7 +462,7 @@ function VoiceSection() {
           </form>
         ) : (
           <>
-            <Row title={`Connected · ${voice.model}`} desc="Try it below with real answers full of your names (companies, projects, tools…). Once you're happy with the accuracy, the mic goes on Hermes's questions and the chat.">
+            <Row title={`Connected · ${voice.model}`} desc={`Try it below with real answers full of your names (companies, projects, tools…). Once you're happy with the accuracy, the mic goes on ${aiName()}'s questions and the chat.`}>
               <Button variant="outline" onClick={() => api.post('/api/voice/disconnect').then(() => toast.success('Gemini key removed'))}>
                 Disconnect
               </Button>
@@ -574,7 +575,7 @@ export function GmailSection() {
                 </Button>
               </div>
             </Row>
-            <Row title="Check automatically" desc="Every 30 minutes while Talaria is running. Only emails about companies you applied to are read, and only those are sent to Hermes to understand.">
+            <Row title="Check automatically" desc={`Every 30 minutes while Talaria is running. Only emails about companies you applied to are read, and only those are sent to ${aiName()} to understand.`}>
               <Switch checked={g.autoCheck !== false} onChange={autoCheck => api.put('/api/settings', { gmail: { ...g, autoCheck } }).then(() => toast.success(autoCheck ? 'Gmail checked every 30 minutes' : 'Gmail checked only when you ask'))} label="Check automatically" />
             </Row>
           </>

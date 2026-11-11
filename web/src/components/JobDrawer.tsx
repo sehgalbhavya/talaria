@@ -16,6 +16,7 @@ import { ApplyKit } from './drawer/ApplyKit';
 import { remoteLabel } from './JobCard';
 import { Workspace } from './Workspace';
 import { toast } from 'sonner';
+import { aiName } from '@/lib/ai';
 
 type Tab = 'fit' | 'application' | 'posting' | 'timeline';
 
@@ -38,7 +39,7 @@ export function JobDrawer({ jobId, tab }: { jobId: string | null; tab: string | 
 
   const shown = job || lastJob.current;
 
-  // Jobs Hermes is working on, or waiting on you for, open in the workspace. The choice is made
+  // Jobs the AI is working on, or waiting on you for, open in the workspace. The choice is made
   // when the job opens, so a submission landing mid-view doesn't swap the screen under you.
   const mode = React.useRef<{ key: string; workspace: boolean } | null>(null);
   const key = `${jobId}|${tab}`;
@@ -72,7 +73,7 @@ function DrawerBody({ job, tab: tabParam }: { job: Job; tab: Tab | null }) {
     if (tabParam) setTab(tabParam);
   }, [tabParam]);
 
-  // Opening a job is the cue to get Hermes's take on it.
+  // Opening a job is the cue to get the AI's take on it.
   React.useEffect(() => {
     if (!job.analysis && !job.work.analyze && job.status !== 'archived') jobActions.analyze(job.id).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,7 +185,7 @@ function DrawerBody({ job, tab: tabParam }: { job: Job; tab: Tab | null }) {
                 </Badge>
               </div>
             </div>
-            <Tooltip content={score == null ? 'Hermes is scoring this job' : 'Fit score from Hermes'}>
+            <Tooltip content={score == null ? `${aiName()} is scoring this job` : `Fit score from ${aiName()}`}>
               <div className="flex flex-col items-center gap-1">
                 <ScoreRing score={score} size={58} stroke={4.5} />
                 <span className="text-[10.5px] font-semibold tracking-wider text-faint uppercase">Fit</span>
@@ -264,7 +265,7 @@ function Pipeline({ job }: { job: Job }) {
               <span className={cn('grid size-4 shrink-0 place-items-center ', current ? 'ring-[3px]' : '')} style={{ background: done || current ? meta.color : 'var(--line)', ['--tw-ring-color' as any]: `color-mix(in oklab, ${meta.color} 25%, transparent)` }}>
                 {done && <Check className="size-2.5 text-white" strokeWidth={3.5} />}
               </span>
-              <span className="truncate max-lg:hidden">{s === 'preparing' ? 'Hermes' : meta.label}</span>
+              <span className="truncate max-lg:hidden">{s === 'preparing' ? aiName() : meta.label}</span>
             </div>
             {i < PIPE.length - 1 && <div className={cn('h-px min-w-3 flex-1', i < idx ? 'bg-ink/25' : 'bg-line')} />}
           </React.Fragment>
@@ -367,14 +368,14 @@ function Footer({ job, onApply, goApplication }: { job: Job; onApply: () => void
           {submitting
             ? `${job.work.submit?.step || 'Applying'}… watch it in the Talaria browser window.`
             : tailoring
-              ? 'Hermes is working on the draft.'
+              ? `${aiName()} is working on the draft.`
               : pending > 0
-                ? `Hermes has ${pending} question${pending > 1 ? 's' : ''} for you.`
+                ? `${aiName()} has ${pending} question${pending > 1 ? 's' : ''} for you.`
                 : job.packet
                   ? auto
-                    ? 'Review it with Hermes, then finalize and Talaria submits it.'
-                    : 'Review it with Hermes, then finalize to get the Apply kit.'
-                  : 'Hermes is getting started.'}
+                    ? `Review it with ${aiName()}, then finalize and Talaria submits it.`
+                    : `Review it with ${aiName()}, then finalize to get the Apply kit.`
+                  : `${aiName()} is getting started.`}
         </span>
       );
       right = (

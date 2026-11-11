@@ -12,6 +12,7 @@ import { RolesFields, SkipCompaniesField, WhereFields, WorkKindFields, withKinds
 import { toast } from 'sonner';
 import { dismissLookup, lookUpCompany, receiveCompanies, useLookups, type Lookup } from '@/lib/companyLookups';
 import { countryOptions } from '@/lib/suggest';
+import { aiName } from '@/lib/ai';
 
 type PrefsProps = { prefs: Preferences; onChange: (p: Partial<Preferences>) => void };
 
@@ -25,7 +26,7 @@ const SECTIONS = [
 
 const goSettings = (section: string) => navigate({ view: 'settings', section });
 
-/** What you want and where Hermes looks: one draft, one save bar, for the whole page. */
+/** What you want and where the AI looks: one draft, one save bar, for the whole page. */
 export function JobSearchView() {
   const stored = useApp(s => s.preferences)!;
   const [prefs, setPrefs] = React.useState(stored);
@@ -45,7 +46,7 @@ export function JobSearchView() {
   };
 
   return (
-    <SectionPage title="Job search" subtitle="What you want, and where Hermes should look. Changes apply to the next search." sections={SECTIONS} rail={<SearchRail prefs={prefs} dirty={dirty} onSave={save} />}>
+    <SectionPage title="Job search" subtitle={`What you want, and where ${aiName()} should look. Changes apply to the next search.`} sections={SECTIONS} rail={<SearchRail prefs={prefs} dirty={dirty} onSave={save} />}>
       <PageSectionBlock id="want" title="What you want">
         <Card className="space-y-5 p-5">
           <WorkKindFields prefs={prefs} onChange={change} />
@@ -155,7 +156,7 @@ const BUCKET: Partial<Record<SourceId, string>> = {
   smartrecruiters: 'Companies you watch',
   recruitee: 'Companies you watch',
   company_site: 'Companies you watch',
-  hermes_web: 'Web search',
+  web_search: 'Web search',
   linkedin: 'LinkedIn',
   academic: 'PhD boards',
 };
@@ -180,9 +181,9 @@ function SearchRail({ prefs, dirty, onSave }: { prefs: Preferences; dirty: boole
 
   const issues: { text: string; fix: () => void; label: string }[] = [];
   if (prefs.sources.linkedin && !settings?.linkedin.connected) issues.push({ text: 'LinkedIn is on, but not connected', fix: () => goSettings('connections'), label: 'Connect' });
-  if (prefs.sources.hermes_web && !webOn) issues.push({ text: "Web search is on as a source, but searching the web is turned off", fix: () => goSettings('ai'), label: 'Turn on' });
+  if (prefs.sources.web_search && !webOn) issues.push({ text: "Web search is on as a source, but searching the web is turned off", fix: () => goSettings('ai'), label: 'Turn on' });
   if (prefs.phd?.enabled && !webOn) issues.push({ text: 'PhD search needs web search turned on', fix: () => goSettings('ai'), label: 'Turn on' });
-  if (!prefs.roles.length && !(prefs.lookingFor || []).every(k => k === 'phd')) issues.push({ text: 'No roles yet, so Hermes has nothing to search for', fix: () => jump('want'), label: 'Add roles' });
+  if (!prefs.roles.length && !(prefs.lookingFor || []).every(k => k === 'phd')) issues.push({ text: `No roles yet, so ${aiName()} has nothing to search for`, fix: () => jump('want'), label: 'Add roles' });
   const anySource = Object.values(prefs.sources).some(Boolean) || prefs.customBoards.some(b => b.enabled) || prefs.targetCompanies.length > 0;
   if (!anySource) issues.push({ text: 'Every source is off', fix: () => jump('where'), label: 'Pick some' });
 
@@ -234,7 +235,13 @@ function SearchRail({ prefs, dirty, onSave }: { prefs: Preferences; dirty: boole
 // ---------------- sources ----------------
 
 export const BOARDS: { id: SourceId; name: string; desc: string }[] = [
-  { id: 'hermes_web', name: 'Web search', desc: "The AI searches the open web: companies' own career sites, Workday, Greenhouse, Lever and more." },
+  {
+    id: 'web_search',
+    name: 'Web search',
+    get desc() {
+      return `${aiName()} searches the open web: companies' own career sites, Workday, Greenhouse, Lever and more.`;
+    },
+  },
   { id: 'remotive', name: 'Remotive', desc: 'Curated remote tech jobs.' },
   { id: 'remoteok', name: 'Remote OK', desc: 'Large feed of remote roles worldwide.' },
   { id: 'himalayas', name: 'Himalayas', desc: 'Remote jobs with salary data.' },
@@ -276,11 +283,11 @@ function BuiltInBoards({ prefs, onChange, withLinkedIn }: PrefsProps & { withLin
         card(
           b.id,
           <>
-            {b.id === 'hermes_web' && <Globe className="size-3.5 text-gold" />}
+            {b.id === 'web_search' && <Globe className="size-3.5 text-gold" />}
             {b.name}
           </>,
           b.desc,
-          b.id === 'hermes_web' && !webOn ? fixLink("Web search is turned off. Turn it on in Settings", 'ai') : undefined,
+          b.id === 'web_search' && !webOn ? fixLink("Web search is turned off. Turn it on in Settings", 'ai') : undefined,
         ),
       )}
       {withLinkedIn &&
@@ -311,7 +318,7 @@ type Suggestion = { name: string; url: string; why: string };
 const HOW: Record<CustomBoard['how'], { label: string; icon: React.ReactNode }> = {
   feed: { label: 'Read from its feed', icon: <Rss className="size-3.5" /> },
   page: { label: 'Read from its listings', icon: <List className="size-3.5" /> },
-  search: { label: 'Searched by Hermes', icon: <Search className="size-3.5" /> },
+  search: { label: 'Searched on the web', icon: <Search className="size-3.5" /> },
 };
 
 /** Job boards you add yourself: any site that lists jobs, searched alongside the built-in ones. */
@@ -334,7 +341,7 @@ function CustomBoards({ prefs, onChange }: PrefsProps) {
           ? `${b.name}: Talaria reads its job feed (${count} jobs in it now)`
           : b.how === 'page'
             ? `${b.name}: ${count} job links on the page. Talaria reads the ones that match your roles.`
-            : `${b.name}: its listings can't be read directly, so the AI searches the site for your roles${webSearch ? '' : ' (turn on “Search the web” in Settings)'}.`,
+            : `${b.name}: its listings can't be read directly, so ${aiName()} searches the site for your roles${webSearch ? '' : ' (turn on “Search the web” in Settings)'}.`,
       );
       setInput('');
     } finally {
@@ -346,7 +353,7 @@ function CustomBoards({ prefs, onChange }: PrefsProps) {
     <div className="bg-card p-5 shadow-card">
       <div className="text-[14px] font-semibold text-ink">Your job boards</div>
       <div className="mt-0.5 max-w-xl text-[12.5px] leading-relaxed text-muted">
-        Add any site where jobs in your field get posted: a niche board, a country's job site, a community's jobs page. Paste its link and Talaria works out how to read it: its job feed, its listings, or a Hermes search within the site.
+        Add any site where jobs in your field get posted: a niche board, a country's job site, a community's jobs page. Paste its link and Talaria works out how to read it: its job feed, its listings, or a web search within the site.
       </div>
 
       {boards.length > 0 ? (
@@ -429,7 +436,7 @@ function PhdSettings({ prefs, onChange }: PrefsProps) {
             <GraduationCap className="size-4 text-accent" /> Search for PhD positions
           </div>
           <div className="mt-0.5 max-w-xl text-[12.5px] leading-relaxed text-muted">
-            Hermes searches academic job boards (EURAXESS, Academic Positions, jobs.ac.uk, FindAPhD, Varbi) and university and lab pages for open, funded PhDs in these fields, plus close ones your background fits. They appear on the PhDs side of the board, and their applications get an academic CV and a motivation letter.
+            {aiName()} searches academic job boards (EURAXESS, Academic Positions, jobs.ac.uk, FindAPhD, Varbi) and university and lab pages for open, funded PhDs in these fields, plus close ones your background fits. They appear on the PhDs side of the board, and their applications get an academic CV and a motivation letter.
           </div>
           {phd.enabled && !webOn && (
             <button type="button" onClick={() => goSettings('ai')} className="mt-1.5 inline-flex items-center gap-1 text-[11.5px] font-medium text-warn hover:underline">
@@ -441,7 +448,7 @@ function PhdSettings({ prefs, onChange }: PrefsProps) {
       </div>
       {phd.enabled && (
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="Research fields" hint="What you'd want to research. Hermes also looks at closely related topics.">
+          <Field label="Research fields" hint={`What you'd want to research. ${aiName()} also looks at closely related topics.`}>
             <ChipInput value={phd.fields} onChange={fields => set({ fields })} placeholder="Add a field" suggestions={PHD_FIELD_IDEAS} />
           </Field>
           <Field label="Where" hint="Countries or cities. Leave empty for anywhere in Europe.">
@@ -482,7 +489,7 @@ function CompaniesToWatch({ prefs, onChange }: PrefsProps) {
     try {
       const r = await api.post<{ companies: Suggestion[] }>('/api/preferences/suggest-companies');
       setSuggestions(r.companies);
-      if (!r.companies.length) toast('Hermes found no new companies this time');
+      if (!r.companies.length) toast(`${aiName()} found no new companies this time`);
     } finally {
       setSuggesting(false);
     }
@@ -492,17 +499,17 @@ function CompaniesToWatch({ prefs, onChange }: PrefsProps) {
     <div className="bg-card p-5 shadow-card">
       <div className="flex items-start justify-between gap-4">
         <div className="max-w-xl text-[12.5px] leading-relaxed text-muted">
-          Add any company by name or by the link to its jobs page. Talaria finds where it posts: Greenhouse, Lever, Ashby, Workday, Workable, SmartRecruiters, Recruitee, or its own careers website, which Hermes searches for your roles.
+          Add any company by name or by the link to its jobs page. Talaria finds where it posts: Greenhouse, Lever, Ashby, Workday, Workable, SmartRecruiters, Recruitee, or its own careers website, which {aiName()} searches for your roles.
         </div>
         <Button variant="secondary" size="sm" loading={suggesting} icon={<Sparkles className="size-3.5 text-gold" />} onClick={suggest}>
-          {suggesting ? 'Hermes is looking…' : 'Suggest companies'}
+          {suggesting ? `${aiName()} is looking…` : 'Suggest companies'}
         </Button>
       </div>
 
       {suggestions.length > 0 && (
         <div className="mt-4 overflow-hidden border border-gold/20 bg-gold-soft/30">
           <div className="flex items-center justify-between border-b border-gold/15 px-3.5 py-2 text-[12px] font-semibold text-gold">
-            Hermes suggests
+            {aiName()} suggests
             <span className="flex items-center gap-3">
               <button onClick={() => suggestions.forEach(sg => add(sg.url, sg.name))} className="font-semibold text-ink hover:underline">
                 Add all
@@ -533,7 +540,7 @@ function CompaniesToWatch({ prefs, onChange }: PrefsProps) {
 
       {!prefs.targetCompanies.length && !suggestions.length && !lookups.length && (
         <p className="mt-4 border border-dashed border-line px-3.5 py-3 text-[12.5px] leading-relaxed text-muted">
-          No companies yet. Add the ones you'd love to work for below, or press <strong className="font-semibold text-ink">Suggest companies</strong> and Hermes picks some that fit your profile.
+          No companies yet. Add the ones you'd love to work for below, or press <strong className="font-semibold text-ink">Suggest companies</strong> and {aiName()} picks some that fit your profile.
         </p>
       )}
       {/* Every chip animates its position, so when one arrives or leaves the rest glide into place. */}
@@ -590,7 +597,7 @@ function CompaniesToWatch({ prefs, onChange }: PrefsProps) {
           Add
         </Button>
       </form>
-      <p className="mt-2 text-[11.5px] text-faint">Add as many as you like; each is looked up in the background. A link is fastest. With just a name, Talaria checks the common hiring platforms, then asks Hermes to find their careers site (up to a minute).</p>
+      <p className="mt-2 text-[11.5px] text-faint">Add as many as you like; each is looked up in the background. A link is fastest. With just a name, Talaria checks the common hiring platforms, then asks {aiName()} to find their careers site (up to a minute).</p>
     </div>
   );
 }

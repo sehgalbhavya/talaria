@@ -9,6 +9,7 @@ import { cn, scoreTone, timeAgo } from '@/lib/utils';
 import { Badge, Button, SectionTitle, Textarea, Tooltip } from '../ui';
 import { ScoreRing } from '../brand';
 import { useElapsed } from './hooks';
+import { aiName } from '@/lib/ai';
 
 export function FitPanel({ job }: { job: Job }) {
   const a = job.analysis;
@@ -21,7 +22,7 @@ export function FitPanel({ job }: { job: Job }) {
       return (
         <div className="border border-bad/20 bg-bad-soft/50 p-5">
           <div className="flex items-center gap-2 font-semibold text-bad">
-            <AlertTriangle className="size-4" /> Hermes couldn't finish the analysis
+            <AlertTriangle className="size-4" /> {aiName()} couldn't finish the analysis
           </div>
           <p className="mt-1.5 text-[13px] text-ink-2">{job.work.analyze?.error}</p>
           <Button className="mt-4" variant="secondary" icon={<RefreshCw className="size-4" />} onClick={() => jobActions.analyze(job.id, true)}>
@@ -52,7 +53,7 @@ export function FitPanel({ job }: { job: Job }) {
             </div>
             <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{a.summary}</p>
             <div className="mt-3 text-[11.5px] text-faint">
-              Hermes · {a.model || 'model'} · {timeAgo(a.generatedAt)}
+              {aiName()} · {a.model || 'model'} · {timeAgo(a.generatedAt)}
               {a.mustHaves.length > 0 && ` · meets ${met} of ${a.mustHaves.length} key requirements`}
             </div>
           </div>
@@ -159,7 +160,7 @@ export function FitPanel({ job }: { job: Job }) {
         <section className="flex items-center justify-between gap-4 bg-ink p-5 text-bg">
           <div>
             <div className="font-display text-[17px] leading-tight">Worth a shot?</div>
-            <p className="mt-1 text-[13px] text-bg/65">Hermes will tailor your resume, write the cover letter and ask you anything it needs.</p>
+            <p className="mt-1 text-[13px] text-bg/65">{aiName()} will tailor your resume, write the cover letter and ask you anything it needs.</p>
           </div>
           <Button variant="gold" size="lg" icon={<Sparkles className="size-4" />} onClick={() => jobActions.prepare(job.id)}>
             Prepare it
@@ -187,7 +188,7 @@ function AnalyzingState({ job, running }: { job: Job; running: boolean }) {
           <Sparkles className="size-5 animate-pulse-soft text-gold" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="font-semibold text-ink">Hermes is sizing up your odds</div>
+          <div className="font-semibold text-ink">{aiName()} is sizing up your odds</div>
           <motion.div key={idx} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="text-[13px] text-muted">
             {running ? `${lines[idx]}…` : 'Queued — starting shortly…'}
           </motion.div>
@@ -298,7 +299,7 @@ function GapNotesFooter({ job, points }: { job: Job; points: string[] }) {
     <section className="border border-accent/20 bg-accent-soft/40 p-4">
       {earlier.length > 0 && (
         <div className="mb-3 space-y-1.5">
-          <div className="text-[11px] font-semibold tracking-wide text-accent uppercase">Earlier notes (Hermes now treats these as covered)</div>
+          <div className="text-[11px] font-semibold tracking-wide text-accent uppercase">Earlier notes ({aiName()} now treats these as covered)</div>
           {earlier.map(n => (
             <div key={n.point} className="text-[12.5px] text-ink-2">
               <span className="font-medium">{n.point}:</span> {n.response}
@@ -311,7 +312,7 @@ function GapNotesFooter({ job, points }: { job: Job; points: string[] }) {
           <div className="text-[13.5px] font-semibold text-ink">
             You've explained {notes.length} gap{notes.length === 1 ? '' : 's'}
           </div>
-          <div className="text-[12.5px] text-muted">Hermes will re-score your fit and rewrite the resume, cover letter and answers around what you told it.</div>
+          <div className="text-[12.5px] text-muted">{aiName()} will re-score your fit and rewrite the resume, cover letter and answers around what you told it.</div>
         </div>
         <Button
           variant="gold"
@@ -319,7 +320,7 @@ function GapNotesFooter({ job, points }: { job: Job; points: string[] }) {
           icon={<Wand2 className="size-4" />}
           onClick={async () => {
             await api.post(`/api/jobs/${job.id}/apply-gap-notes`);
-            toast('Hermes is re-scoring and rewriting with your notes', { icon: <Sparkles className="size-4 text-gold" /> });
+            toast(`${aiName()} is re-scoring and rewriting with your notes`, { icon: <Sparkles className="size-4 text-gold" /> });
           }}
         >
           {busy ? 'Rewriting…' : job.packet ? 'Rewrite with my notes' : 'Re-score & prepare with my notes'}

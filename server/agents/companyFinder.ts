@@ -1,4 +1,4 @@
-// Adding companies to watch: from a name or a careers link, and Hermes's suggestions of employers
+// Adding companies to watch: from a name or a careers link, and the AI's suggestions of employers
 // that hire for your roles where you want to work.
 import type { TargetCompany } from '../../shared/types.ts';
 import { askJson, finishRun, startRun } from '../lib/ai/index.ts';
@@ -24,8 +24,8 @@ export async function resolveCompany(input: string, name?: string): Promise<Adde
       r = await detectCompany({ name: text }, prefs);
     } catch (err: any) {
       if (err.message !== 'NEEDS_URL') throw err;
-      // Not on a platform with a guessable address: have Hermes find their careers site.
-      const h = startRun('hermes_web', `Finding ${text}'s careers site`);
+      // Not on a platform with a guessable address: have the AI find their careers site.
+      const h = startRun('web_search', `Finding ${text}'s careers site`);
       try {
         const got = await askJson<any>({
           prompt: `Use web_search to find the official careers page of the company "${text}": the page on their own website (or their hiring platform) that lists their open jobs. Prefer a page for ${getPreferences().locations[0] || 'their main country'} if they have country sites.
@@ -59,7 +59,7 @@ export interface CompanySuggestion {
 export async function suggestCompanies(): Promise<CompanySuggestion[]> {
   const prefs = getPreferences();
   const profile = getProfile();
-  const h = startRun('hermes_web', 'Suggesting companies to watch');
+  const h = startRun('web_search', 'Suggesting companies to watch');
   try {
     const raw = await askJson<any>({
       prompt: `You help a job seeker decide which companies to watch for openings. Use web_search to find 10 employers that regularly hire for the candidate's target roles in their preferred locations: a mix of large companies (which often run their own careers websites), established tech companies and strong scale-ups. Include companies that are hiring for these roles right now where you can tell.

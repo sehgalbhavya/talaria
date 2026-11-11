@@ -10,6 +10,7 @@ import { answerQuestions, markApplied, moveJob, prepareApplication } from './age
 import { getScoutState, runScout } from './agents/scout.ts';
 import { followUpOnDiscoveries } from './agents/autopilot.ts';
 import { funnel } from './agents/report.ts';
+import { aiName } from './lib/ai/index.ts';
 
 const STATUSES = ['discovered', 'preparing', 'needs_input', 'applied', 'interviewing', 'offer', 'archived'] as const;
 const score = (j: Job) => j.analysis?.score ?? j.quick?.score;
@@ -83,7 +84,7 @@ function build() {
 
   server.registerTool(
     'prepare_application',
-    { title: 'Prepare application', description: 'Have Hermes tailor the resume, write a cover letter and draft answers for a job. Runs in the background.', inputSchema: { id: z.string() } },
+    { title: 'Prepare application', description: `Have Talaria's AI tailor the resume, write a cover letter and draft answers for a job. Runs in the background.`, inputSchema: { id: z.string() } },
     async ({ id }) => {
       if (!getJob(id)) return text('No job with that id.');
       prepareApplication(id).catch(() => {});
@@ -93,10 +94,10 @@ function build() {
 
   server.registerTool(
     'answer_question',
-    { title: 'Answer a question', description: "Answer one of Hermes's open questions on an application. The answer is remembered for future applications.", inputSchema: { jobId: z.string(), questionId: z.string(), answer: z.string() } },
+    { title: 'Answer a question', description: `Answer one of Talaria's open questions on an application. The answer is remembered for future applications.`, inputSchema: { jobId: z.string(), questionId: z.string(), answer: z.string() } },
     async ({ jobId, questionId, answer }) => {
       await answerQuestions(jobId, [{ id: questionId, answer }]);
-      return text('Saved. Hermes is updating the application with your answer.');
+      return text(`Saved. ${aiName()} is updating the application with your answer.`);
     },
   );
 

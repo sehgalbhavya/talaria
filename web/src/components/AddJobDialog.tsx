@@ -5,6 +5,7 @@ import { Button, Dialog, Field, Input, Segmented, Textarea } from './ui';
 import { api } from '@/lib/api';
 import { openJob } from '@/lib/router';
 import { toast } from 'sonner';
+import { aiName } from '@/lib/ai';
 
 export function AddJobDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const [mode, setMode] = React.useState<'link' | 'paste'>('link');
@@ -42,7 +43,7 @@ export function AddJobDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="Add a job" description="Found something yourself? Drop it on the board and Hermes will analyze your fit right away.">
+    <Dialog open={open} onOpenChange={onOpenChange} title="Add a job" description={`Found something yourself? Drop it on the board and ${aiName()} will analyze your fit right away.`}>
       <form onSubmit={submit} className="mt-5 space-y-4">
         <Segmented
           value={mode}
@@ -58,10 +59,10 @@ export function AddJobDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             hint={
               url && !isAts ? (
                 <span className="inline-flex items-center gap-1.5">
-                  <Sparkles className="size-3.5 text-gold" /> Hermes will open the page and read the posting — takes ~30 seconds.
+                  <Sparkles className="size-3.5 text-gold" /> {aiName()} will open the page and read the posting — takes ~30 seconds.
                 </span>
               ) : (
-                'Greenhouse, Lever and Ashby links import instantly. Any other page is read by Hermes.'
+                `Greenhouse, Lever and Ashby links import instantly. Any other page is read by ${aiName()}.`
               )
             }
           >
@@ -98,7 +99,7 @@ export function AddJobDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             Cancel
           </Button>
           <Button type="submit" variant="primary" loading={busy}>
-            {busy && mode === 'link' && !isAts ? 'Hermes is reading…' : 'Add to board'}
+            {busy && mode === 'link' && !isAts ? `${aiName()} is reading…` : 'Add to board'}
           </Button>
         </div>
       </form>

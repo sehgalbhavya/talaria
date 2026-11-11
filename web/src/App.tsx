@@ -23,6 +23,8 @@ import { useTheme } from '@/lib/theme';
 export function App() {
   const loaded = useApp(s => s.loaded);
   const onboarded = useApp(s => Boolean(s.settings?.onboarded && s.profile));
+  // Text everywhere names the connected AI ("ChatGPT is on it"); switching AI redraws it all.
+  useApp(s => s.settings?.ai.provider);
   const [error, setError] = React.useState<string | null>(null);
   const route = useRoute();
   const theme = useTheme();

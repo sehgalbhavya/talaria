@@ -16,6 +16,7 @@ import { useElapsed } from '@/components/drawer/hooks';
 import { BOARDS, SourcesEditor } from '@/views/JobSearch';
 import { ConnectStep, FooterSlot, NextButton, SkipLink, StepFooter, StepHeader, WelcomeStep } from '@/views/OnboardingSetup';
 import { GmailSection, LinkedInSection, ModelSelect } from '@/views/Settings';
+import { aiName } from '@/lib/ai';
 
 // The sidebar's sections and the screens inside them. Every step number on screen comes from here.
 const SECTIONS = ['Welcome', 'Connect the AI', 'Your resume', 'Your story', "What you're after", 'Is this you?', 'Where to look', 'Your accounts', 'Review & start'];
@@ -73,7 +74,7 @@ function saveProgress(patch: Partial<OnboardingProgress>) {
 
 type Reading = { state: 'idle' | 'reading' | 'done' | 'error'; run?: AgentRun };
 
-/** Whether Hermes is reading your resume right now, read from its task so it survives a reload. */
+/** Whether the AI is reading your resume right now, read from its task so it survives a reload. */
 function useResumeReading(): Reading {
   const runs = useApp(s => s.runs);
   const profile = useApp(s => s.profile);
@@ -111,7 +112,7 @@ function ReaderModel({ value, onChange }: { value: string; onChange: (model: str
 const READING_LINES = ['Reading every line', 'Pulling out your experience', 'Cataloguing your skills', 'Working out which roles fit you', 'Almost there'];
 
 /**
- * Pinned to the top of each screen while Hermes reads your resume, and the place it tells you how
+ * Pinned to the top of each screen while the AI reads your resume, and the place it tells you how
  * that went. It sits in the page rather than in a corner toast, so it never covers a button.
  */
 function ReadingBanner({ reading, onRetry, invite }: { reading: Reading; onRetry: () => void; invite?: string }) {
@@ -168,7 +169,7 @@ function ReadingBanner({ reading, onRetry, invite }: { reading: Reading; onRetry
             )}
             {mode === 'reading' && !invite && (
               <>
-                <span className="font-medium text-ink">Hermes is reading your resume</span>
+                <span className="font-medium text-ink">{aiName()} is reading your resume</span>
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.span key={line} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.25 }} className="truncate text-muted">
                     {line}…
@@ -184,7 +185,7 @@ function ReadingBanner({ reading, onRetry, invite }: { reading: Reading; onRetry
             )}
             {mode === 'error' && (
               <>
-                <span className="font-medium text-ink">Hermes couldn't read your resume.</span>
+                <span className="font-medium text-ink">{aiName()} couldn't read your resume.</span>
                 <button type="button" onClick={onRetry} className="shrink-0 font-medium text-bad underline-offset-2 hover:underline">
                   Try again
                 </button>
@@ -279,7 +280,7 @@ export function Onboarding() {
 
       <main ref={scroller} className="flex min-h-full flex-col px-6 lg:overflow-y-auto lg:[scrollbar-gutter:stable]">
         <div className="mx-auto flex w-full max-w-[620px] flex-1 flex-col pt-12">
-          {screen !== 'resume' && screen !== 'you' && <ReadingBanner reading={reading} onRetry={() => go('resume')} invite={screen === 'story' ? 'While Hermes reads your resume, tell us your story.' : undefined} />}
+          {screen !== 'resume' && screen !== 'you' && <ReadingBanner reading={reading} onRetry={() => go('resume')} invite={screen === 'story' ? `While ${aiName()} reads your resume, tell us your story.` : undefined} />}
           <FooterSlot.Provider value={footer}>
             <AnimatePresence mode="wait">
               {/* my-auto: a short step sits in the middle of the space above its pinned buttons. */}
@@ -364,7 +365,7 @@ function ResumeStep({ kicker, next, back }: Nav) {
     return (
       <div>
         <StepHeader kicker={kicker} title="Your resume">
-          Hermes builds your profile from it and never invents experience you don't have.
+          {aiName()} builds your profile from it and never invents experience you don't have.
         </StepHeader>
         <div className={cn('border p-5', reading.state === 'error' ? 'border-bad/30 bg-bad-soft/40' : 'border-line bg-card shadow-card')}>
           <div className="flex items-center gap-4">
@@ -374,9 +375,9 @@ function ResumeStep({ kicker, next, back }: Nav) {
             <div className="min-w-0 flex-1">
               <div className="truncate font-semibold text-ink">{resumeName || 'Your resume'}</div>
               <div className="text-[13px] text-muted">
-                {reading.state === 'reading' && <>Hermes is reading it{reading.run?.model ? ` with ${reading.run.model}` : ''} in the background · {elapsed}s. You can carry on.</>}
-                {reading.state === 'done' && <>Read{reading.run?.detail ? `: ${reading.run.detail}` : ''}. You'll check what Hermes found in step {sectionOf('you') + 1}.</>}
-                {reading.state === 'error' && <span className="text-bad">Hermes couldn't read it: {reading.run?.error?.split('\n')[0] || 'something went wrong'}</span>}
+                {reading.state === 'reading' && <>{aiName()} is reading it{reading.run?.model ? ` with ${reading.run.model}` : ''} in the background · {elapsed}s. You can carry on.</>}
+                {reading.state === 'done' && <>Read{reading.run?.detail ? `: ${reading.run.detail}` : ''}. You'll check what {aiName()} found in step {sectionOf('you') + 1}.</>}
+                {reading.state === 'error' && <span className="text-bad">{aiName()} couldn't read it: {reading.run?.error?.split('\n')[0] || 'something went wrong'}</span>}
               </div>
             </div>
             {reading.state === 'reading' && <Loader className="size-4 animate-spin text-gold" />}
@@ -406,8 +407,8 @@ function ResumeStep({ kicker, next, back }: Nav) {
 
   return (
     <div>
-      <StepHeader kicker={kicker} title="Show Hermes who you are.">
-        Your resume is the source of truth. Hermes reads it in the background while you answer the next questions, and never invents experience you don't have. Upload your LaTeX source and every tailored resume keeps your exact template.
+      <StepHeader kicker={kicker} title={`Show ${aiName()} who you are.`}>
+        Your resume is the source of truth. {aiName()} reads it in the background while you answer the next questions, and never invents experience you don't have. Upload your LaTeX source and every tailored resume keeps your exact template.
       </StepHeader>
 
       {!paste ? (
@@ -456,7 +457,7 @@ function ResumeStep({ kicker, next, back }: Nav) {
 
 // ---------------- 4. Story ----------------
 
-/** Hand your answers to Hermes to weave into your story (it skips answers it has already woven). */
+/** Hand your answers to the AI to weave into your story (it skips answers it has already woven). */
 const weaveStory = (answers: Record<string, string>) => api.post('/api/profile/story', { answers }, { quiet: true }).catch(() => {});
 
 function StoryStep({ kicker, next, back }: Nav) {
@@ -475,7 +476,7 @@ function StoryStep({ kicker, next, back }: Nav) {
   return (
     <div>
       <StepHeader kicker={kicker} title="Tell us your story.">
-        Your resume says what you did. This is who you are: Hermes weaves your answers into your story, and your cover letters are written from it. Answer like you'd talk to a friend; a few honest sentences beat a polished paragraph. Skip anything you like.
+        Your resume says what you did. This is who you are: {aiName()} weaves your answers into your story, and your cover letters are written from it. Answer like you'd talk to a friend; a few honest sentences beat a polished paragraph. Skip anything you like.
       </StepHeader>
 
       <div className="space-y-5">
@@ -511,7 +512,7 @@ type PrefsProps = { prefs: Preferences; onChange: (p: Partial<Preferences>) => v
 const example = (list: string[], fallback: string) => `e.g. ${list.length ? list.slice(0, 2).join(', ') : fallback}`;
 
 /**
- * Suggestions and examples for the preference fields, from what Hermes read in your resume, so a
+ * Suggestions and examples for the preference fields, from what the AI read in your resume, so a
  * nurse sees nursing roles and a developer sees developer ones. Before the resume is read (or for
  * an older profile), they fall back to what you've told Talaria so far.
  */
@@ -539,7 +540,7 @@ export function RolesFields({ prefs, onChange }: PrefsProps) {
   const ideas = useIdeas(prefs);
   return (
     <>
-      <Field label="Roles you're targeting" hint="Hermes suggests these from your resume. Edit freely; press Enter to add.">
+      <Field label="Roles you're targeting" hint={`${aiName()} suggests these from your resume. Edit freely; press Enter to add.`}>
         <ChipInput value={prefs.roles} onChange={roles => onChange({ roles })} placeholder={example(ideas.roles.slice(0, 1), 'Frontend Engineer')} suggestions={prefs.roles.length < 6 ? ideas.roles : []} />
       </Field>
       <Field label="Seniority">
@@ -700,7 +701,7 @@ export function WorkKindFields({ prefs, onChange, cards }: PrefsProps & { cards?
   );
 }
 
-/** One screen's share of your preferences. Suggestions Hermes finds meanwhile fill anything you haven't touched. */
+/** One screen's share of your preferences. Suggestions the AI finds meanwhile fill anything you haven't touched. */
 function usePrefsDraft(keys: (keyof Preferences)[], confirm: (keyof Preferences)[] = keys) {
   const stored = useApp(s => s.preferences)!;
   const [draft, setDraft] = React.useState(stored);
@@ -725,7 +726,7 @@ function usePrefsDraft(keys: (keyof Preferences)[], confirm: (keyof Preferences)
     setSaving(true);
     try {
       await api.put('/api/preferences', Object.fromEntries(keys.map(k => [k, draft[k]])));
-      // Empty lists stay open to Hermes's suggestions; anything you've set is yours.
+      // Empty lists stay open to the AI's suggestions; anything you've set is yours.
       const mine = confirm.filter(k => !(Array.isArray(draft[k]) && !(draft[k] as unknown[]).length));
       const before = useApp.getState().settings?.onboarding?.confirmedPrefs || [];
       await saveProgress({ confirmedPrefs: [...new Set([...before, ...mine])] });
@@ -742,14 +743,14 @@ function StillReadingNote() {
   if (state !== 'reading') return null;
   return (
     <p className="mb-6 flex items-center gap-2 bg-gold-soft/40 px-3.5 py-2.5 text-[12.5px] text-ink-2">
-      <Sparkles className="size-3.5 shrink-0 text-gold" /> Hermes is still reading your resume. Its suggestions will appear here in anything you haven't filled in yet.
+      <Sparkles className="size-3.5 shrink-0 text-gold" /> {aiName()} is still reading your resume. Its suggestions will appear here in anything you haven't filled in yet.
     </p>
   );
 }
 
 function KindStep({ kicker, next, back }: Nav) {
   const name = useApp(s => s.profile?.name?.split(' ')[0]);
-  // Only the choice itself is yours yet; the level it implies can still take Hermes's suggestion.
+  // Only the choice itself is yours yet; the level it implies can still take the AI's suggestion.
   const { draft, change, save, saving } = usePrefsDraft(['lookingFor', 'seniority', 'phd'], ['lookingFor']);
   const picked = draft.lookingFor?.length || 0;
   return (
@@ -826,18 +827,18 @@ function PhdStep({ kicker, next, back }: Nav) {
   const { draft, change, save, saving } = usePrefsDraft(['phd']);
   const phd = draft.phd || { enabled: true, fields: [], countries: [] };
   const set = (patch: Partial<typeof phd>) => change({ phd: { ...phd, enabled: true, ...patch } });
-  // Suggest from what Hermes found in your own resume, never a fixed list.
+  // Suggest from what the AI found in your own resume, never a fixed list.
   const resumeIdeas = useIdeas(draft);
   const ideas = [...new Set([...draft.includeKeywords, ...resumeIdeas.topics])].filter(k => !phd.fields.includes(k));
   const where = resumeIdeas.locations.filter(l => findPlace(l)?.kind !== 'city');
   return (
     <div>
       <StepHeader kicker={kicker} title="What would you love to research?">
-        Hermes searches academic job boards and university, lab and industry pages for open, funded PhD positions in these fields, and close ones your background fits. They get their own side of the board.
+        {aiName()} searches academic job boards and university, lab and industry pages for open, funded PhD positions in these fields, and close ones your background fits. They get their own side of the board.
       </StepHeader>
       <StillReadingNote />
       <div className="space-y-5">
-        <Field label="Research fields" hint="Add a few. Hermes also looks at closely related topics.">
+        <Field label="Research fields" hint={`Add a few. ${aiName()} also looks at closely related topics.`}>
           <ChipInput value={phd.fields} onChange={fields => set({ fields })} placeholder="e.g. Human-computer interaction" suggestions={ideas} />
         </Field>
         <Field label="Where" hint="Countries or cities. Leave empty for anywhere in Europe.">
@@ -884,7 +885,7 @@ function ProfileCheckStep({ kicker, next, back, go }: Nav) {
     const failed = reading.state === 'error';
     return (
       <div>
-        <StepHeader kicker={kicker} title={failed ? "Hermes couldn't read your resume." : 'Hermes is almost done reading.'}>
+        <StepHeader kicker={kicker} title={failed ? `${aiName()} couldn't read your resume.` : `${aiName()} is almost done reading.`}>
           {failed ? reading.run?.error?.split('\n')[0] || 'Something went wrong.' : "Once it's done you'll check what it found here. This usually takes under a minute."}
         </StepHeader>
         {!failed && (
@@ -916,7 +917,7 @@ function ProfileCheckStep({ kicker, next, back, go }: Nav) {
   return (
     <div>
       <StepHeader kicker={kicker} title={`Is this you${p.name ? `, ${p.name.split(' ')[0]}` : ''}?`}>
-        Here's what Hermes took from your resume. Fix anything it got wrong; every application is built from this.
+        Here's what {aiName()} took from your resume. Fix anything it got wrong; every application is built from this.
       </StepHeader>
 
       <div className="space-y-5">
@@ -997,7 +998,7 @@ function SourcesStep({ kicker, next, back }: Nav) {
   };
   return (
     <div>
-      <StepHeader kicker={kicker} title="Where should Hermes look?">
+      <StepHeader kicker={kicker} title={`Where should ${aiName()} look?`}>
         Pick the job boards to search. Then add your own sources: any company you'd love to work for, by name or by the link to its careers page. Talaria works out where it posts and watches it for you.
       </StepHeader>
       <SourcesEditor prefs={prefs} onChange={p => setPrefs(x => ({ ...x, ...p, sources: { ...x.sources, ...(p.sources || {}) } }))} />
@@ -1060,8 +1061,8 @@ function LaunchStep({ kicker, back, go }: Nav) {
   const kinds = (prefs.lookingFor || []).map(k => WORK_KINDS.find(x => x.value === k)?.label).filter(Boolean);
   type Row = { label: string; value: string; edit: Screen; show?: boolean };
   const rows = ([
-    { label: 'You', value: profile ? [profile.name, profile.headline].filter(Boolean).join(' · ') : 'Hermes is still reading your resume', edit: 'you' },
-    { label: 'Your story', value: answered ? `${answered} of ${REQUIRED_STORY_QUESTIONS.length} questions answered` : 'Not written yet (Hermes will ask when it writes a cover letter)', edit: 'story' },
+    { label: 'You', value: profile ? [profile.name, profile.headline].filter(Boolean).join(' · ') : `${aiName()} is still reading your resume`, edit: 'you' },
+    { label: 'Your story', value: answered ? `${answered} of ${REQUIRED_STORY_QUESTIONS.length} questions answered` : `Not written yet (${aiName()} will ask when it writes a cover letter)`, edit: 'story' },
     { label: 'Looking for', value: kinds.join(', ') || 'Full-time roles', edit: 'kind' },
     { label: 'Roles', value: `${prefs.roles.join(', ') || 'None yet'} · ${prefs.seniority.map(s => SENIORITY.find(x => x.value === s)?.label).join(', ')}`, edit: 'roles', show: jobs },
     { label: 'Where', value: [prefs.locations.join(', ') || 'Anywhere', REMOTE_LABEL[prefs.remote], prefs.needsSponsorship ? 'needs sponsorship' : null].filter(Boolean).join(' · '), edit: 'where', show: jobs },
@@ -1077,7 +1078,7 @@ function LaunchStep({ kicker, back, go }: Nav) {
 
   return (
     <div>
-      <StepHeader kicker={kicker} title="Here's what Hermes knows about you.">
+      <StepHeader kicker={kicker} title={`Here's what ${aiName()} knows about you.`}>
         Check it over, then start the hunt. You can change any of this later on the Profile page.
       </StepHeader>
 
@@ -1102,7 +1103,7 @@ function LaunchStep({ kicker, back, go }: Nav) {
       </div>
 
       <StepFooter back={back}>
-        {!profile && <span className="text-[12.5px] text-faint">Waiting for Hermes to finish your resume</span>}
+        {!profile && <span className="text-[12.5px] text-faint">Waiting for {aiName()} to finish your resume</span>}
         <Button variant="primary" size="lg" loading={busy} disabled={!profile || (jobs && !prefs.roles.length) || (wantsPhd(prefs) && !prefs.phd?.fields.length)} icon={<Sparkles className="size-4 text-gold" />} onClick={start}>
           Start the hunt
         </Button>

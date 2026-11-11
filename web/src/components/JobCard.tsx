@@ -8,6 +8,7 @@ import { awaitingInterview, cn, fitScore, fmtDate, isWorking, pendingQuestions, 
 import { CompanyLogo, ScoreRing } from './brand';
 import { jobActions, moveJob, useApp } from '@/lib/store';
 import { Tooltip } from './ui';
+import { aiName } from '@/lib/ai';
 
 export const ARCHIVE_REASON: Record<ArchiveReason, string> = {
   dismissed: 'Dismissed',
@@ -37,6 +38,7 @@ export const JobCard = React.memo(function JobCard({ job, overlay, dragging }: {
   const rejected = job.outcome?.kind === 'rejection' && job.status !== 'archived';
   const closed = job.liveCheck?.live === false && job.status !== 'archived';
   const profile = useApp(s => s.profile);
+  useApp(s => s.settings?.ai.provider); // memoized, so it redraws itself when the AI (and its name) changes
   const hash = React.useMemo(() => resumeHash(profile), [profile]);
   const stale = job.status === 'needs_input' && !working && isStaleDraft(job, profile, hash);
 
@@ -150,7 +152,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
     return (
       <div className="-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 border-t border-bad/15 bg-bad-soft/60 px-3.5 py-2 text-[12px] font-medium text-bad">
         <AlertTriangle className="size-3.5" />
-        <span className="min-w-0 flex-1 truncate">Hermes hit a snag</span>
+        <span className="min-w-0 flex-1 truncate">{aiName()} hit a snag</span>
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={e => {
@@ -263,10 +265,10 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
   return null;
 }
 
-/** Shown on hover while Hermes works on the card: stops it until you resume. */
+/** Shown on hover while the AI works on the card: stops it until you resume. */
 function PauseButton({ id }: { id: string }) {
   return (
-    <Tooltip content="Pause Hermes on this job">
+    <Tooltip content={`Pause ${aiName()} on this job`}>
       <button
         aria-label="Pause"
         onPointerDown={e => e.stopPropagation()}

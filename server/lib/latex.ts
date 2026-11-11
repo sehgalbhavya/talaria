@@ -1,4 +1,4 @@
-// LaTeX resume support: the user's own template stays the source of truth. Hermes only rewrites
+// LaTeX resume support: the user's own template stays the source of truth. The AI only rewrites
 // the document body; the preamble (fonts, macros, layout) is kept byte-for-byte.
 
 import { execFile } from 'node:child_process';

@@ -69,7 +69,7 @@ function Cmd({ children }: { children: string }) {
 // ---------------- 0. Welcome ----------------
 
 const WHAT_WE_ASK = [
-  { icon: FileText, title: 'Your resume', body: 'Hermes reads it in the background while you carry on. You check what it found before anything else uses it.' },
+  { icon: FileText, title: 'Your resume', body: 'Your AI reads it in the background while you carry on. You check what it found before anything else uses it.' },
   { icon: MessageSquare, title: 'Your story', body: 'A few questions, answered in your own words. Your cover letters are written from this, so they sound like you.' },
   { icon: Search, title: "What you're after", body: 'The roles and level you want, where and how you want to work, and your deal-breakers.' },
   { icon: Send, title: 'Where to look', body: 'Job boards, plus any companies or careers pages you want watched. Nothing is sent to an employer until you approve it.' },

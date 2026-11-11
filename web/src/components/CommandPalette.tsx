@@ -69,7 +69,7 @@ export function CommandPalette() {
                 <Command.Item className={item} keywords={['preferences', 'roles', 'sources', 'boards', 'companies']} onSelect={() => run(() => navigate({ view: 'search' }))}>
                   <ScanSearch className="size-4 text-muted" /> Job search: what you want and where to look
                 </Command.Item>
-                <Command.Item className={item} keywords={['hermes', 'tasks', 'running', 'tokens', 'log']} onSelect={() => run(openActivity)}>
+                <Command.Item className={item} keywords={['ai', 'tasks', 'running', 'tokens', 'log']} onSelect={() => run(openActivity)}>
                   <Activity className="size-4 text-muted" /> Agent activity
                 </Command.Item>
                 <Command.Item className={item} onSelect={() => run(() => navigate({ view: 'settings' }))}>

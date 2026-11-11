@@ -11,6 +11,7 @@ import { StatusDot, Wordmark } from './brand';
 import { setThemePref, useTheme } from '@/lib/theme';
 import { openPalette } from './CommandPalette';
 import { profileScore } from '@/lib/profileStrength';
+import { aiName } from '@/lib/ai';
 
 type NavItem = { view: View; label: string; icon: React.ElementType };
 
@@ -82,7 +83,7 @@ export function Sidebar({ view }: { view: View }) {
       </nav>
 
       <div className="mt-auto flex flex-col gap-2">
-        {/* Hermes at a glance. The card opens what it's doing; the cog opens how it's set up. */}
+        {/* The AI at a glance. The card opens what it's doing; the cog opens how it's set up. */}
         <div className="relative">
           <button
             onClick={openActivity}
@@ -114,10 +115,10 @@ export function Sidebar({ view }: { view: View }) {
               {settings?.autopilot.enabled ? `Autopilot on · next search ${nextScout}` : 'Autopilot off'}
             </div>
           </button>
-          <Tooltip content="Hermes settings">
+          <Tooltip content="AI settings">
             <button
               onClick={() => navigate({ view: 'settings', section: 'ai' })}
-              aria-label="Hermes settings"
+              aria-label="AI settings"
               className="absolute top-2 right-2 p-1 text-faint transition-colors hover:bg-ink/[0.06] hover:text-ink"
             >
               <SlidersHorizontal className="size-3.5" />

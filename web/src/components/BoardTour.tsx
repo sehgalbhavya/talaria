@@ -2,28 +2,38 @@ import * as React from 'react';
 import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
+import { aiName } from '@/lib/ai';
 import { cn } from '@/lib/utils';
 import { Button, Dialog, Kbd } from '@/components/ui';
 
+// Slides that name the AI are getters, so they say the name of whichever AI is connected.
 const SLIDES: { kicker: string; title: string; body: React.ReactNode }[] = [
   {
     kicker: 'Your board',
     title: 'Every job lives on a card.',
-    body: (
-      <>
-        Cards move left to right as an application progresses: <strong>Discovered</strong>, <strong>Hermes is on it</strong>, <strong>Needs you</strong>, <strong>Applied</strong>, then <strong>Interviewing</strong> and <strong>Offer</strong>. You can also drag cards yourself.
-      </>
-    ),
+    get body() {
+      return (
+        <>
+          Cards move left to right as an application progresses: <strong>Discovered</strong>, <strong>{aiName()} is on it</strong>, <strong>Needs you</strong>, <strong>Applied</strong>, then <strong>Interviewing</strong> and <strong>Offer</strong>. You can also drag cards yourself.
+        </>
+      );
+    },
   },
   {
     kicker: 'Discovered',
     title: 'Start by looking at your matches.',
-    body: <>Hermes is searching right now, so the first jobs appear in a minute or two. Open a card to read the job and see how well you fit. If it isn't for you, dismiss it. If it is, hand it to Hermes.</>,
+    get body() {
+      return <>{aiName()} is searching right now, so the first jobs appear in a minute or two. Open a card to read the job and see how well you fit. If it isn't for you, dismiss it. If it is, hand it to {aiName()}.</>;
+    },
   },
   {
     kicker: 'Needs you',
-    title: 'Hermes asks before it writes.',
-    body: <>After you hand over a job, Hermes asks a few short questions: why this company, what to lead with, anything your resume doesn't show. Answer, and it drafts a tailored resume and cover letter. Then you refine them together in plain words.</>,
+    get title() {
+      return `${aiName()} asks before it writes.`;
+    },
+    get body() {
+      return <>After you hand over a job, {aiName()} asks a few short questions: why this company, what to lead with, anything your resume doesn't show. Answer, and it drafts a tailored resume and cover letter. Then you refine them together in plain words.</>;
+    },
   },
   {
     kicker: 'Applied',

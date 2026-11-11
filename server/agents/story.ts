@@ -1,4 +1,4 @@
-// Your story: you answer a few questions, Hermes weaves the answers into the first-person story
+// Your story: you answer a few questions, the AI weaves the answers into the first-person story
 // your cover letters are written from. Your answers stay the source; the story can be rewoven anytime.
 
 import { composeStory, STORY_QUESTIONS } from '../../shared/story.ts';
@@ -19,10 +19,10 @@ Rules:
 THEIR ANSWERS
 ${qa}`;
 
-// The answers Hermes is weaving right now, so the same answers handed over twice are woven once.
+// The answers the AI is weaving right now, so the same answers handed over twice are woven once.
 let inProgress = '';
 
-/** Save your answers right away, then have Hermes weave them into your story in the background. `again` reweaves unchanged answers. */
+/** Save your answers right away, then have the AI weave them into your story in the background. `again` reweaves unchanged answers. */
 export function saveStory(answers: Record<string, string>, again = false) {
   const profile = getProfile();
   if (!profile) throw new Error('Add your resume first.');
@@ -30,7 +30,7 @@ export function saveStory(answers: Record<string, string>, again = false) {
   const key = JSON.stringify(clean);
   if (!again && (key === inProgress || (profile.storyWovenAt && key === JSON.stringify(profile.storyAnswers)))) return;
   const plain = composeStory(clean);
-  // Until Hermes is done, cover letters use your answers as they are.
+  // Until the AI is done, cover letters use your answers as they are.
   setProfile({ ...profile, storyAnswers: clean, story: plain, storyWovenAt: undefined });
   if (!plain) return;
   inProgress = key;
@@ -95,7 +95,7 @@ ${numbered}`;
 
 /**
  * An older free-text story (written before the questions existed) sorted into the questions.
- * Hermes only picks which sentences go where; every answer is rebuilt from your own sentences,
+ * the AI only picks which sentences go where; every answer is rebuilt from your own sentences,
  * and anything it doesn't place goes under "Anything else". Your story itself is left as it is.
  */
 export async function sortStory() {
@@ -119,7 +119,7 @@ export async function sortStory() {
     const rest = list.filter((_, i) => !used.has(i));
     if (rest.length) answers.more = joinSentences(rest);
     const current = getProfile();
-    // You may have saved answers of your own while Hermes was sorting: yours win.
+    // You may have saved answers of your own while the AI was sorting: yours win.
     if (current && !current.storyAnswers) setProfile({ ...current, storyAnswers: answers });
     finishRun(h, true, `${used.size} of ${list.length} sentences placed under the questions`);
   } catch (err: any) {

@@ -8,6 +8,10 @@ import { getSettings, newId, now, saveRun } from '../store.ts';
 import { emit } from '../events.ts';
 import type { AgentRun, AIAccounts, AIStatus, RunKind } from '../../../shared/types.ts';
 import { complete, DEFAULT_MODELS, isConnected, listModels, PROVIDERS, providerLabel, type Usage } from './providers.ts';
+import { aiShortName } from '../../../shared/aiProviders.ts';
+
+/** The connected AI's name ("ChatGPT", "Claude", "Copilot"…) for what it's doing: "ChatGPT is drafting". */
+export const aiName = () => aiShortName(getSettings().ai.provider);
 
 const MAX_PROMPT_CHARS = 200_000;
 
@@ -351,7 +355,7 @@ async function runOnce(call: AICall, provider: string, prompt: string, release: 
   if (jobId) jobCalls.set(ctrl, jobId);
   if (h) runCalls.set(ctrl, h.run.id);
   const timeoutMs = (call.timeoutSec || settings.timeoutSec || 240) * 1000;
-  const timer = setTimeout(() => ctrl.abort(new Error(`The AI timed out after ${Math.round(timeoutMs / 1000)}s.`)), timeoutMs);
+  const timer = setTimeout(() => ctrl.abort(new Error(`${aiName()} timed out after ${Math.round(timeoutMs / 1000)}s.`)), timeoutMs);
   const t0 = Date.now();
   let usage: Usage | undefined;
   try {
@@ -423,7 +427,7 @@ export function extractJson<T = unknown>(text: string): T {
       } catch {}
     }
   }
-  throw new Error('The AI did not return valid JSON.');
+  throw new Error(`${aiName()} did not return valid JSON.`);
 }
 
 export async function askJson<T>(call: AICall, validate?: (v: any) => T): Promise<T> {
@@ -432,7 +436,7 @@ export async function askJson<T>(call: AICall, validate?: (v: any) => T): Promis
     const parsed = extractJson(first.text);
     return validate ? validate(parsed) : (parsed as T);
   } catch (err: any) {
-    call.handle?.log('Output was not valid JSON — asking the AI to repair it.');
+    call.handle?.log(`Output was not valid JSON — asking ${aiName()} to repair it.`);
     const repair = await callAI({
       ...call,
       web: false,

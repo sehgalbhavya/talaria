@@ -1,5 +1,5 @@
 // Keyword layer: after tailoring, before the humanizer. Code works out which of the posting's ATS
-// keywords the resume still misses; Hermes works in the ones that are true for the candidate, each
+// keywords the resume still misses; the AI works in the ones that are true for the candidate, each
 // in one line (a skills line, the bullet about that work, or the summary). Code keeps an edit only
 // if the keyword is backed by something the candidate wrote themselves, the line still says what
 // it said, and nothing factual moved. Keywords that don't fit are remembered and never forced.
@@ -65,7 +65,7 @@ Return ONLY JSON: {"lines": {"<id>": "<edited line>", ...}, "skipped": [{"keywor
 export interface WeaveResult {
   texts: Record<string, string>;
   added: string[];
-  unfit: string[]; // still missing, and Hermes judged them untrue for the candidate
+  unfit: string[]; // still missing, and the AI judged them untrue for the candidate
 }
 
 /** Work the missing keywords in where they're true. Never fails the tailoring run. */
@@ -112,7 +112,7 @@ export async function weaveKeywords(
     texts[l.id] = next;
     gain.forEach(k => added.add(k));
   }
-  // Only what Hermes judged untrue is never offered again; a keyword your own words just don't
+  // Only what the AI judged untrue is never offered again; a keyword your own words just don't
   // spell out stays missing, so you can still add it yourself or with a note.
   const skipped = new Set((Array.isArray(raw?.skipped) ? raw.skipped : []).map((x: any) => String(x?.keyword ?? x)));
   const unfit = missing.filter(k => !added.has(k) && skipped.has(k));

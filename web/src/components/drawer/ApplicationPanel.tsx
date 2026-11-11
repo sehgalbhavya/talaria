@@ -11,6 +11,7 @@ import { useElapsed } from './hooks';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { navigate } from '@/lib/router';
+import { aiName } from '@/lib/ai';
 
 type Sub = 'resume' | 'letter' | 'answers' | 'changes';
 
@@ -25,7 +26,7 @@ export function ApplicationPanel({ job }: { job: Job }) {
       return (
         <div className="border border-bad/20 bg-bad-soft/50 p-5">
           <div className="flex items-center gap-2 font-semibold text-bad">
-            <AlertTriangle className="size-4" /> Hermes couldn't finish this application
+            <AlertTriangle className="size-4" /> {aiName()} couldn't finish this application
           </div>
           <p className="mt-1.5 text-[13px] text-ink-2">{t.error}</p>
           <Button className="mt-4" variant="secondary" icon={<RefreshCw className="size-4" />} onClick={() => jobActions.prepare(job.id)}>
@@ -94,7 +95,7 @@ export function ApplicationPanel({ job }: { job: Job }) {
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <span className="text-[11.5px] leading-snug text-faint">
                     {missingToTry(cov)
-                      ? 'Hermes adds the ones that are true for you, keeps the ones already in, and never lowers your score.'
+                      ? `${aiName()} adds the ones that are true for you, keeps the ones already in, and never lowers your score.`
                       : "The struck-through ones don't match your experience, so they're left out on purpose."}
                   </span>
                   {missingToTry(cov) > 0 && <Button
@@ -104,7 +105,7 @@ export function ApplicationPanel({ job }: { job: Job }) {
                     icon={<Wand2 className="size-3.5 text-gold" />}
                     onClick={async () => {
                       const r = await api.post<{ keywords: string[] }>(`/api/jobs/${job.id}/weave-keywords`);
-                      toast(`Hermes is working in ${r.keywords.length} keywords`, { icon: <Sparkles className="size-4 text-gold" /> });
+                      toast(`${aiName()} is working in ${r.keywords.length} keywords`, { icon: <Sparkles className="size-4 text-gold" /> });
                     }}
                   >
                     Work in {missingToTry(cov)} missing keyword{missingToTry(cov) === 1 ? '' : 's'}
@@ -186,7 +187,7 @@ export function ApplicationPanel({ job }: { job: Job }) {
             {sub === 'resume' && (p.latexStatus === 'compiled' ? <LatexPreview job={job} /> : (
               <>
                 {p.latex && p.latexStatus === 'uncompiled' && <Notice>Your LaTeX resume was tailored, but no LaTeX compiler is installed — this preview uses Talaria's built-in layout. Download the .tex or open it in Overleaf for your own template.</Notice>}
-                {p.latexStatus === 'error' && <Notice tone="bad">Hermes couldn't produce a version of your LaTeX template that compiles ({p.latexError?.split('\n')[0]}). Showing Talaria's built-in layout instead — try “Regenerate”.</Notice>}
+                {p.latexStatus === 'error' && <Notice tone="bad">{aiName()} couldn't produce a version of your LaTeX template that compiles ({p.latexError?.split('\n')[0]}). Showing Talaria's built-in layout instead — try “Regenerate”.</Notice>}
                 <ResumePreview resume={p.resume} />
               </>
             ))}
@@ -215,7 +216,7 @@ export function ApplicationPanel({ job }: { job: Job }) {
   );
 }
 
-/** Missing keywords Hermes hasn't already tried and found untrue for you. */
+/** Missing keywords the AI hasn't already tried and found untrue for you. */
 export function missingToTry(cov?: { missing: string[]; unfit?: string[] }) {
   return cov ? cov.missing.filter(k => !cov.unfit?.includes(k)).length : 0;
 }
@@ -227,13 +228,13 @@ function PrepareCta({ job }: { job: Job }) {
     ['Tailors your resume', 'Rewrites and reorders your real experience around what this role values — no invented facts.'],
     ['Writes the cover letter', 'Specific to the company and role, in a confident human voice.'],
     ['Drafts form answers', '“Why us?”, “Tell us about a project” — ready to paste.'],
-    ['Asks before anything goes out', 'Sponsorship, salary, start date — Hermes checks with you and remembers your answers.'],
+    ['Asks before anything goes out', `Sponsorship, salary, start date — ${aiName()} checks with you and remembers your answers.`],
   ];
   return (
     <div className="overflow-hidden bg-card shadow-card">
       <div className="border-b border-line-2 p-6">
         <div className="flex items-center gap-2 text-[12px] font-semibold tracking-[0.08em] text-gold uppercase">
-          <Sparkles className="size-3.5" /> Hermes can take it from here
+          <Sparkles className="size-3.5" /> {aiName()} can take it from here
         </div>
         <div className="mt-2 font-display text-[21px] leading-tight text-ink">Prepare this application</div>
       </div>
@@ -265,7 +266,7 @@ function PreparingState({ job }: { job: Job }) {
   const STEPS = hasLatex ? [...BASE_STEPS, 'Writing your LaTeX resume'] : BASE_STEPS;
   const step = job.work.tailor?.step || STEPS[0];
   const idx = Math.max(0, STEPS.indexOf(step));
-  const startedAt = job.timeline.slice().reverse().find(e => e.text.startsWith('Hermes started'))?.at;
+  const startedAt = job.timeline.slice().reverse().find(e => e.text.endsWith('started preparing your application'))?.at;
   const elapsed = useElapsed(startedAt, true);
   return (
     <div className="overflow-hidden bg-card shadow-card">
@@ -274,7 +275,7 @@ function PreparingState({ job }: { job: Job }) {
           <Sparkles className="size-5 animate-pulse-soft text-gold" />
         </div>
         <div className="flex-1">
-          <div className="font-semibold text-ink">Hermes is preparing your application</div>
+          <div className="font-semibold text-ink">{aiName()} is preparing your application</div>
           <div className="text-[13px] text-muted">Usually 30–90 seconds. Close this panel anytime — it keeps going.</div>
         </div>
         <span className="text-[12px] text-faint tabular-nums">{elapsed ? `${elapsed}s` : ''}</span>
@@ -317,7 +318,7 @@ function QuestionsForm({ job }: { job: Job }) {
         job.questions.filter(q => (answers[q.id] ?? '').trim()).map(q => ({ id: q.id, answer: answers[q.id], remember: remember[q.id] })),
         true,
       );
-      toast.success('Thanks — Hermes is folding your answers into the application.');
+      toast.success(`Thanks — ${aiName()} is folding your answers into the application.`);
       setOpen(false);
     } finally {
       setBusy(false);
@@ -332,7 +333,7 @@ function QuestionsForm({ job }: { job: Job }) {
         </span>
         <div className="flex-1">
           <div className="text-[13.5px] font-semibold text-ink">Your answers ({job.questions.filter(q => q.answer).length}/{job.questions.length})</div>
-          <div className="text-[12px] text-muted">Hermes used these in the application. Click to review or change.</div>
+          <div className="text-[12px] text-muted">{aiName()} used these in the application. Click to review or change.</div>
         </div>
         <ArrowRight className="size-4 text-faint" />
       </button>
@@ -344,7 +345,7 @@ function QuestionsForm({ job }: { job: Job }) {
       <div className="flex items-start gap-3 border-b border-warn/15 bg-warn-soft/60 px-5 py-4">
         <SquarePen className="mt-0.5 size-5 shrink-0 text-warn" />
         <div>
-          <div className="text-[15px] font-semibold text-ink">{pending > 0 ? `Hermes needs ${pending} answer${pending > 1 ? 's' : ''} before you submit` : 'Your answers'}</div>
+          <div className="text-[15px] font-semibold text-ink">{pending > 0 ? `${aiName()} needs ${pending} answer${pending > 1 ? 's' : ''} before you submit` : 'Your answers'}</div>
           <div className="mt-0.5 text-[12.5px] text-muted">Answers are remembered, so you won't be asked the same thing twice.</div>
         </div>
       </div>
@@ -421,7 +422,7 @@ export function QuestionField({ q, value, onChange, remember, onRemember }: { q:
           <div className="w-full">
             <p className="whitespace-pre-wrap bg-accent/5 px-3 py-2 text-[13px] leading-relaxed text-ink-2">{suggestion}</p>
             <button type="button" onClick={() => onChange(suggestion)} className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-accent hover:underline">
-              <Wand2 className="size-3" /> Use Hermes's suggestion
+              <Wand2 className="size-3" /> Use {aiName()}'s suggestion
             </button>
           </div>
         )}
@@ -475,7 +476,7 @@ export function FormAnswers({ job }: { job: Job }) {
     patchJobLocal(job.id, { packet: { ...p, answers: next } });
     jobActions.patch(job.id, { packet: { answers: next } });
   };
-  if (!items.length) return <p className="text-[13px] text-muted">Hermes didn't draft any form answers for this one.</p>;
+  if (!items.length) return <p className="text-[13px] text-muted">{aiName()} didn't draft any form answers for this one.</p>;
   return (
     <div className="space-y-3">
       {items.map((a, i) => (
@@ -506,11 +507,11 @@ function ReviseBox({ job, disabled }: { job: Job; disabled: boolean }) {
     if (!instructions.trim()) return;
     jobActions.prepare(job.id, { refine: true, instructions });
     setText('');
-    toast('Hermes is revising your application', { icon: <Sparkles className="size-4 text-gold" /> });
+    toast(`${aiName()} is revising your application`, { icon: <Sparkles className="size-4 text-gold" /> });
   };
   return (
     <section className="border border-dashed border-line p-4">
-      <SectionTitle className="mb-2.5">Ask Hermes to revise</SectionTitle>
+      <SectionTitle className="mb-2.5">Ask {aiName()} to revise</SectionTitle>
       <form
         onSubmit={e => {
           e.preventDefault();
@@ -544,7 +545,7 @@ export function LatexPreview({ job }: { job: Job }) {
     <div className="overflow-hidden bg-[#e9e7e1] p-3 dark:bg-[#0a0a0c]">
       {p.latexError && (
         <Notice>
-          Hermes's tailored wording wouldn't compile, so this PDF is your original resume text in your own template. Hit “Regenerate” to try the tailoring again.
+          {aiName()}'s tailored wording wouldn't compile, so this PDF is your original resume text in your own template. Hit “Regenerate” to try the tailoring again.
         </Notice>
       )}
       <div className="mb-2.5 flex items-center justify-between px-1 text-[12px] text-[#5a5a66] dark:text-faint">

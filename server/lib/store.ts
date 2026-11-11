@@ -14,6 +14,7 @@ import type {
   Settings,
   TimelineEvent,
 } from '../../shared/types.ts';
+import { aiShortName } from '../../shared/aiProviders.ts';
 
 export const newId = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 12);
 export const now = () => new Date().toISOString();
@@ -31,7 +32,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   includeKeywords: [],
   excludeKeywords: [],
   excludeCompanies: [],
-  targetCompanies: [], // yours to choose: add them, or let Hermes suggest some that fit your profile
+  targetCompanies: [], // yours to choose: add them, or let the AI suggest some that fit your profile
   customBoards: [], // job boards you add yourself, alongside the built-in ones
   sources: {
     remotive: true,
@@ -43,7 +44,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     greenhouse: true,
     lever: true,
     ashby: true,
-    hermes_web: true,
+    web_search: true,
     linkedin: false,
   },
   maxAgeDays: 30,
@@ -132,6 +133,46 @@ function load(): DB {
 
 const db: DB = load();
 delete (db.settings as any).hermes;
+renameHermes(db);
+
+/**
+ * Older versions called Talaria's AI "Hermes". What it saved under that name now carries the
+ * connected AI's own name ("ChatGPT started preparing your application"), and its internal ids
+ * are renamed: the web-search source and the AI's side of the chat. Does nothing once done.
+ */
+function renameHermes(d: DB) {
+  const name = aiShortName(d.settings.ai?.provider);
+  const swap = (s?: string) => (s && s.includes('Hermes') ? s.replace(/Hermes(?! Agent)/g, name) : s);
+  const sources = d.preferences.sources as Record<string, boolean>;
+  if ('hermes_web' in sources) {
+    sources.web_search = sources.hermes_web;
+    delete sources.hermes_web;
+  }
+  for (const job of Object.values(d.jobs)) {
+    if ((job.source as string) === 'hermes_web') job.source = 'web_search';
+    for (const m of job.chat || []) if ((m.from as string) === 'hermes') m.from = 'ai';
+    // Only Talaria's own status text is renamed, never what a posting or a conversation says,
+    // and nothing at all on a job at a company called Hermes.
+    if (/hermes/i.test(job.company || '')) continue;
+    job.descriptionHtml = job.descriptionHtml?.replace('Summary written by Hermes ', `Summary written by ${name} `) || '';
+    for (const e of job.timeline || []) e.text = swap(e.text) || '';
+    // Error and status lines in the chat are Talaria's own; the rest is the conversation.
+    for (const m of job.chat || []) if (m.kind === 'error' || m.kind === 'status') m.text = swap(m.text) || '';
+    for (const w of Object.values(job.work || {})) {
+      if (!w) continue;
+      w.step = swap(w.step);
+      w.error = swap(w.error);
+    }
+    if (job.liveCheck) job.liveCheck.reason = swap(job.liveCheck.reason) || job.liveCheck.reason;
+  }
+  for (const r of d.runs || []) {
+    if ((r.kind as string) === 'hermes_web') r.kind = 'web_search';
+    r.title = swap(r.title) || r.title;
+    r.detail = swap(r.detail);
+    r.error = swap(r.error);
+    for (const l of r.log || []) l.text = swap(l.text) || '';
+  }
+}
 
 // Any task that was mid-flight when the server stopped can't still be running.
 for (const job of Object.values(db.jobs)) {

@@ -6,12 +6,13 @@ import { useApp } from '@/lib/store';
 import { openJob } from '@/lib/router';
 import { cn, fmtDuration, timeAgo } from '@/lib/utils';
 import { Card, EmptyState, IconButton, Segmented, Sheet } from '@/components/ui';
+import { aiName } from '@/lib/ai';
 
 const KIND: Record<RunKind, { icon: React.ElementType; label: string }> = {
   profile: { icon: SquareUser, label: 'Profile' },
   story: { icon: PenLine, label: 'Your story' },
   scout: { icon: ScanSearch, label: 'Scout' },
-  hermes_web: { icon: Globe, label: 'Web search' },
+  web_search: { icon: Globe, label: 'Web search' },
   score: { icon: Sparkles, label: 'Scoring' },
   analyze: { icon: FileSearch, label: 'Fit analysis' },
   tailor: { icon: PenLine, label: 'Application' },
@@ -23,11 +24,11 @@ const KIND: Record<RunKind, { icon: React.ElementType; label: string }> = {
 };
 
 let setOpenGlobal: ((v: boolean) => void) | null = null;
-/** Open the agent activity panel from anywhere: the Hermes card in the sidebar, Ctrl+K, a link. */
+/** Open the agent activity panel from anywhere: the AI card in the sidebar, Ctrl+K, a link. */
 export const openActivity = () => setOpenGlobal?.(true);
 
 /**
- * What Hermes is doing and has done, as a panel that slides in over whatever you're looking at.
+ * What the AI is doing and has done, as a panel that slides in over whatever you're looking at.
  * You glance at it and close it; it's not a place you work in, so it has no spot in the main menu.
  */
 export function ActivityPanel() {
@@ -76,7 +77,7 @@ function ActivityContent({ onClose }: { onClose: () => void }) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="font-display text-[24px] leading-none tracking-[-0.015em] text-ink">Agent activity</h2>
-            <p className="mt-2 text-[13px] text-muted">Every task Hermes has run for you: what it did, how long it took, and what it cost in tokens.</p>
+            <p className="mt-2 text-[13px] text-muted">Every task {aiName()} has run for you: what it did, how long it took, and what it cost in tokens.</p>
           </div>
           <IconButton label="Close" onClick={onClose}>
             <X className="size-4" />
@@ -113,7 +114,7 @@ function ActivityContent({ onClose }: { onClose: () => void }) {
         {groups.length === 0 ? (
           <Card>
             <EmptyState icon={<Sparkles className="size-5" />} title={filter === 'running' ? 'Nothing running' : 'Quiet in here'}>
-              {filter === 'all' ? 'When Hermes scouts, analyzes or writes, each task shows up here live.' : filter === 'running' ? 'Hermes is idle right now.' : 'Nothing matches this filter.'}
+              {filter === 'all' ? `When ${aiName()} scouts, analyzes or writes, each task shows up here live.` : filter === 'running' ? `${aiName()} is idle right now.` : 'Nothing matches this filter.'}
             </EmptyState>
           </Card>
         ) : (
@@ -146,7 +147,7 @@ function RunRow({ run, onOpenJob }: { run: AgentRun; onOpenJob: () => void }) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13.5px] font-medium text-ink">{run.title}</div>
-          <div className="truncate text-[12px] text-muted">{run.error ? <span className="text-bad">{run.error}</span> : run.detail || (live ? run.log[run.log.length - 1]?.text || (run.status === 'queued' ? 'Waiting for a free Hermes slot' : 'Working') : k.label)}</div>
+          <div className="truncate text-[12px] text-muted">{run.error ? <span className="text-bad">{run.error}</span> : run.detail || (live ? run.log[run.log.length - 1]?.text || (run.status === 'queued' ? `Waiting for a free ${aiName()} slot` : 'Working') : k.label)}</div>
         </div>
         <div className="flex shrink-0 items-center gap-3 text-[12px] text-faint tabular-nums">
           {run.usage?.totalTokens ? <span>{(run.usage.totalTokens / 1000).toFixed(1)}k tok</span> : null}

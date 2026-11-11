@@ -1,4 +1,4 @@
-// The "your story" questions. You answer them in onboarding and on the Profile page; Hermes weaves
+// The "your story" questions. You answer them in onboarding and on the Profile page; the AI weaves
 // the answers into the story your cover letters are written from.
 
 export interface StoryQuestion {
@@ -16,7 +16,7 @@ export const STORY_QUESTIONS: StoryQuestion[] = [
   { id: 'life', q: 'Who are you outside work?', hint: 'What you make or do for fun, what you care about, products you love using.', placeholder: 'e.g. I bake sourdough, run on weekends and keep a sketchbook of app ideas…' },
   {
     id: 'more',
-    q: 'Anything else Hermes should know?',
+    q: 'Anything else we should know about you?',
     hint: 'Optional. Stories, values, how you work, things you would want an employer to know.',
     placeholder: 'e.g. I moved countries for my master’s and learned to ask for help early…',
     optional: true,
@@ -25,7 +25,7 @@ export const STORY_QUESTIONS: StoryQuestion[] = [
 
 export const REQUIRED_STORY_QUESTIONS = STORY_QUESTIONS.filter(q => !q.optional);
 
-/** Your answers as they are, one after another: what cover letters fall back on until Hermes has woven them. */
+/** Your answers as they are, one after another: what cover letters fall back on until the AI has woven them. */
 export const composeStory = (answers: Record<string, string> = {}) =>
   STORY_QUESTIONS.map(q => answers[q.id]?.trim())
     .filter(Boolean)

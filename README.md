@@ -28,8 +28,8 @@ Open http://127.0.0.1:5178 and follow the setup screen. Everyone else, read on.
 | Column on the board | What happens there |
 | --- | --- |
 | **Discovered** | Talaria searches job boards and company career pages and drops good matches here, each with a fit score. |
-| **Hermes is on it** | You hand a job to your AI assistant (called *Hermes*). It studies the job against your resume. |
-| **Needs you** | Hermes asks you a few short questions (why this company? what should I lead with?). You answer, and it writes a tailored resume and cover letter. You refine them together, in plain words. |
+| **ChatGPT is on it** | You hand a job to your AI. The column is named after the AI you connected (ChatGPT, Claude, Copilot, Gemini…). It studies the job against your resume. |
+| **Needs you** | Your AI asks you a few short questions (why this company? what should I lead with?). You answer, and it writes a tailored resume and cover letter. You refine them together, in plain words. |
 | **Applied** | You press **Finalize**. Talaria submits the form for you (on Greenhouse, Lever and Ashby sites) or gives you a ready-to-use kit of PDFs and text to paste. |
 | **Interviewing / Offer** | Track replies. Talaria can read your Gmail and move cards for you. |
 
@@ -41,7 +41,7 @@ Open http://127.0.0.1:5178 and follow the setup screen. Everyone else, read on.
 
 | Word | What it means |
 | --- | --- |
-| **Hermes** | The name of Talaria's AI assistant. It runs on an AI account you already have. |
+| **Your AI** | The AI account you connect (ChatGPT, Claude, Copilot, Gemini and others). Talaria calls it by its own name: *ChatGPT is reading your resume*. |
 | **Provider** | The company whose AI Talaria uses (OpenAI/ChatGPT, GitHub Copilot, Google Gemini, and so on). |
 | **Terminal** | A window where you type commands. On Windows it's called *PowerShell*. You only ever paste lines from this guide into it. |
 | **Node.js** | A free program Talaria needs to run. |
@@ -119,7 +119,7 @@ You do this once, inside Talaria's setup screen (step 4), with no terminal. Pick
 - **GitHub Copilot:** press **Sign in with GitHub**, type the short code Talaria shows on GitHub's page and approve. Copilot must be switched on for your account at https://github.com/settings/copilot.
 - **An API key** (Gemini, OpenRouter, Claude, OpenAI, Groq, xAI): press **Get a key**, create one, paste it in and press **Save and test**. A free Gemini key from https://aistudio.google.com/apikey is the easiest start. Keep your key private. Never share it or post it online.
 
-Your sign-in or key is stored only on your computer, in `data/ai-accounts.json` (on Windows, encrypted with your Windows account). If you used an older version of Talaria with Hermes, your sign-ins are brought over automatically.
+Your sign-in or key is stored only on your computer, in `data/ai-accounts.json` (on Windows, encrypted with your Windows account). If you used an older version of Talaria with Hermes Agent, your sign-ins are brought over automatically.
 
 ### Step 4: First-time setup in Talaria
 
@@ -127,11 +127,11 @@ The first time you open Talaria, a guided setup gets to know you. It takes about
 
 1. **Welcome.** What Talaria will ask you and what to have ready.
 2. **Connect the AI.** Pick the AI account you have and sign in (step 3). Talaria tests it right away; when it says *It works!*, continue.
-3. **Your resume.** Drag your resume in (or paste its text). Hermes reads it in the background while you carry on, and a note at the top of the screen tells you when it's done. It never invents experience you don't have.
+3. **Your resume.** Drag your resume in (or paste its text). Your AI reads it in the background while you carry on, and a note at the top of the screen tells you when it's done. It never invents experience you don't have.
 4. **Your story.** Four short questions in your own words: why you do this work, what you're proudest of, what you want next, and who you are outside work. Your cover letters are written from this. Skip any you like.
-5. **What you're after.** The roles and level you want; where and how you want to work (locations, remote, visa sponsorship, salary); and what matters to you (topics you'd love, deal-breakers, companies to skip). Hermes fills in suggestions from your resume, but never overwrites what you've chosen.
-6. **Is this you?** Check and fix what Hermes took from your resume: your details, headline, summary and skills.
-7. **Where to look.** Choose the job boards to search, and add your own sources: any company by name, or the link to its careers page. **Suggest companies** asks Hermes for ones that fit you. Under **Your job boards** you can also add any other job board by pasting its link (a niche board, a country's job site, a community's jobs page). Talaria reads its job feed or its listings, or has Hermes search within the site when neither can be read. Put `{query}` in the link where the search words go to search it once for each of your roles.
+5. **What you're after.** The roles and level you want; where and how you want to work (locations, remote, visa sponsorship, salary); and what matters to you (topics you'd love, deal-breakers, companies to skip). Your AI fills in suggestions from your resume, but never overwrites what you've chosen.
+6. **Is this you?** Check and fix what your AI took from your resume: your details, headline, summary and skills.
+7. **Where to look.** Choose the job boards to search, and add your own sources: any company by name, or the link to its careers page. **Suggest companies** asks your AI for ones that fit you. Under **Your job boards** you can also add any other job board by pasting its link (a niche board, a country's job site, a community's jobs page). Talaria reads its job feed or its listings, or searches within the site when neither can be read. Put `{query}` in the link where the search words go to search it once for each of your roles.
 8. **Review & start.** A summary of everything, with an **Edit** link for each part, and whether **Autopilot** should search for new matches every few hours.
 
 Then press **Start the hunt**. A short tour of the board follows, and the first jobs show up in a minute or two.
@@ -141,8 +141,8 @@ Then press **Start the hunt**. A short tour of the board follows, and the first 
 ## Using Talaria day to day
 
 1. **Open `Talaria.bat`** and look at **Discovered**. Click a card to read the job and see your fit: why you'd get it, why you might not, and how to improve your odds.
-2. **Not interested?** Dismiss it. **Interested?** Hand it to Hermes.
-3. **Open the cards in "Needs you."** Answer Hermes's questions. It then drafts your resume and cover letter. In the workspace you can say things like *"lead with my design work"* or *"make the cover letter warmer"*. Every version is saved under **Versions**, so you can go back.
+2. **Not interested?** Dismiss it. **Interested?** Hand it to your AI.
+3. **Open the cards in "Needs you."** Answer your AI's questions. It then drafts your resume and cover letter. In the workspace you can say things like *"lead with my design work"* or *"make the cover letter warmer"*. Every version is saved under **Versions**, so you can go back.
 4. **Press Finalize & submit** when you're happy. Talaria opens the company's form in its own browser window, fills every field, attaches your files and submits. It saves a screenshot of every submission in `data/applications/`.
 5. **Track replies.** Move cards to Interviewing or Offer, or let the Gmail connection do it.
 
@@ -151,8 +151,8 @@ Then press **Start the hunt**. A short tour of the board follows, and the first 
 Talaria can look for funded PhD positions alongside jobs, on their own side of the board.
 
 1. Turn on **Profile → Sources → PhD positions** and list your research fields (for example *haptics*, *XR*, *automotive HMI*, *generative UI*). Optionally add countries; empty means anywhere in Europe.
-2. Switch the board to **PhDs** and press **Find PhDs**. Hermes searches academic job boards (EURAXESS, Academic Positions, jobs.ac.uk, FindAPhD, Varbi) and university and lab pages, one focused search per pair of fields. Closed positions and duplicates are skipped. PhDs are also searched with every normal job search while this is on.
-3. PhD cards carry a **PhD** tag and their application deadline. Hermes judges them on research fit, asks you research questions (what excites you in the project, an idea you'd bring), builds an academic CV that leads with your research work, and writes a **motivation letter** instead of a cover letter.
+2. Switch the board to **PhDs** and press **Find PhDs**. Your AI searches academic job boards (EURAXESS, Academic Positions, jobs.ac.uk, FindAPhD, Varbi) and university and lab pages, one focused search per pair of fields. Closed positions and duplicates are skipped. PhDs are also searched with every normal job search while this is on.
+3. PhD cards carry a **PhD** tag and their application deadline. Your AI judges them on research fit, asks you research questions (what excites you in the project, an idea you'd bring), builds an academic CV that leads with your research work, and writes a **motivation letter** instead of a cover letter.
 
 Use **All / Jobs / PhDs** at the top of the board to see one kind or both.
 
@@ -254,7 +254,7 @@ All optional. Copy `.env.example` for a list; the launchers don't load it, so se
 | `TALARIA_DATA_DIR` | `./data` | Where your profile, jobs and drafts are stored. |
 | `TALARIA_HEADLESS` | unset | `1` hides the browser window while applying. |
 | `TALARIA_BROWSER_PROFILE` | `data/browser-profile` | Folder for the automation browser's sign-ins. |
-| `HERMES_HOME` | Hermes default | Read once, to bring over sign-ins from Hermes (used by older versions). |
+| `HERMES_HOME` | Hermes Agent's default | Read once, to bring over sign-ins from Hermes Agent (used by older versions). |
 
 Want to help? See [CONTRIBUTING.md](CONTRIBUTING.md).
 

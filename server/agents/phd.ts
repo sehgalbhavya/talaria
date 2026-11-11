@@ -1,4 +1,4 @@
-// PhD positions: Hermes searches academic job boards and university pages for open, funded
+// PhD positions: the AI searches academic job boards and university pages for open, funded
 // doctoral positions in your research fields, judges the fit, and each position is read from its
 // own page. They land in Discovered tagged as PhDs, separate from full-time roles.
 import type { Job } from '../../shared/types.ts';

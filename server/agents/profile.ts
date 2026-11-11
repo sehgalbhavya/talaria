@@ -133,7 +133,7 @@ export async function buildProfileFromResume(resumeText: string, fileName?: stri
     };
     const s = raw.suggested || {};
     const current = getPreferences();
-    // During onboarding you may have answered these while Hermes was still reading: yours win.
+    // During onboarding you may have answered these while the AI was still reading: yours win.
     const confirmed = new Set(getSettings().onboarding?.confirmedPrefs || []);
     const seniority = strArr(s.seniority, 5).map(x => x.toLowerCase()).filter((x): x is Seniority => ['intern', 'entry', 'mid', 'senior', 'lead'].includes(x));
     const suggested: Partial<Preferences> = {

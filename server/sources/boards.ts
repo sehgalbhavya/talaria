@@ -1,7 +1,7 @@
 // Job boards you add yourself: any site that lists jobs. Talaria works out how to read it:
 //  - its RSS or Atom feed, which many boards publish,
 //  - its listing page: the postings it links to, each read from its own page, or
-//  - when neither gives Talaria anything to read (sign-in walls, pages built oddly), Hermes searches
+//  - when neither gives Talaria anything to read (sign-in walls, pages built oddly), the AI searches
 //    the web within that site for your roles (scout.ts).
 
 import type { CustomBoard, Preferences } from '../../shared/types.ts';
@@ -170,9 +170,9 @@ Return ONLY a JSON array, one entry per block: [{"i": number, "isJob": boolean, 
 
 ${pages.map((p, i) => `### i=${i} · ${p.url}\nLink text: ${p.title}\n${p.text.slice(0, 2500)}`).join('\n\n')}`;
 
-/** Postings with no structured data: Hermes reads who is hiring, where, from each page's text (one call per board). */
+/** Postings with no structured data: the AI reads who is hiring, where, from each page's text (one call per board). */
 async function structure(board: CustomBoard, pages: Unread[]): Promise<RawJob[]> {
-  // Feed items that already name the employer don't need Hermes.
+  // Feed items that already name the employer don't need the AI.
   const ready = pages.filter(p => p.company);
   const unclear = pages.filter(p => !p.company && p.text.length >= 300).slice(0, 8);
   const got = unclear.length ? await askJson<any[]>({ prompt: STRUCTURE_PROMPT(board.name, unclear), timeoutSec: 180 }).catch(() => []) : [];
@@ -214,7 +214,7 @@ function fromText(p: Unread, f: { title: string; company: string; location?: str
 
 // ---------------- reading a board ----------------
 
-/** Postings on your board for your roles. needsSearch: Talaria found nothing it can read there, so Hermes should search it. */
+/** Postings on your board for your roles. needsSearch: Talaria found nothing it can read there, so the AI should search it. */
 export async function readBoard(b: CustomBoard, prefs: Preferences, limit = 12): Promise<{ jobs: RawJob[]; needsSearch: boolean }> {
   if (b.how === 'search') return { jobs: [], needsSearch: true };
   const match = roleMatcher(prefs);

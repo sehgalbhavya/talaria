@@ -15,6 +15,7 @@ import { getJob, getPreferences, getProfile, listAnswers, now, updateJob } from 
 import { compileLatex } from '../lib/latex.ts';
 import { coverLetterPdf, resumePdf } from '../lib/resumePdf.tsx';
 import { addChat, markApplied } from './pipeline.ts';
+import { aiName } from '../lib/ai/index.ts';
 
 /** greenhouse/lever/ashby: filled and submitted by Talaria. other: any other site, filled for you to review and submit. */
 export type Ats = 'greenhouse' | 'lever' | 'ashby' | 'other';
@@ -630,7 +631,7 @@ export async function autoApply(jobId: string, opts: { dryRun?: boolean; handle?
 
     let missing: { label: string; question: string }[] = [];
     if (rest2.length) {
-      step(`Hermes is answering ${rest2.length} form question${rest2.length === 1 ? '' : 's'}`);
+      step(`${aiName()} is answering ${rest2.length} form question${rest2.length === 1 ? '' : 's'}`);
       const ans = await askJson<any>({
         prompt: FILL_PROMPT({
           fields: rest2
@@ -721,7 +722,7 @@ export async function autoApply(jobId: string, opts: { dryRun?: boolean; handle?
       const left = missing.length ? ` ${missing.length} field${missing.length > 1 ? 's' : ''} need you: ${missing.map(m => m.label).slice(0, 4).join('; ')}.` : '';
       const msg = `Filled ${filled} of ${fields.length} fields on ${job.company}'s form.${left} Check it in the Talaria window, then submit it yourself.`;
       updateJob(jobId, j => (j.work.submit = { state: 'done', step: 'Filled, waiting for you to submit', at: now() }), { at: now(), text: 'Talaria filled the form; you submit it', kind: 'agent' });
-      addChat(jobId, { from: 'hermes', kind: 'status', text: `${msg} Once you've sent it, mark the application as applied.` });
+      addChat(jobId, { from: 'ai', kind: 'status', text: `${msg} Once you've sent it, mark the application as applied.` });
       finishRun(h, true, `Filled ${filled}/${fields.length}, left for you to submit`);
       return { status: 'needs_you', filled, total: fields.length, missing, message: msg, screenshot, report };
     }
@@ -747,7 +748,7 @@ export async function autoApply(jobId: string, opts: { dryRun?: boolean; handle?
             {
               id: `${Date.now()}c`,
               at: now(),
-              from: 'hermes',
+              from: 'ai',
               kind: 'questions',
               text: `I filled in everything I could on the ${j.company} form, but it asks ${missing.length} thing${missing.length > 1 ? 's' : ''} I don't know. Answer below, then finalize again. The form stays filled in the Talaria window.`,
               questionIds: ids,
@@ -756,7 +757,7 @@ export async function autoApply(jobId: string, opts: { dryRun?: boolean; handle?
           j.packet!.approvedAt = undefined;
           j.work.submit = { state: 'error', error: `The form needs ${missing.length} more answer${missing.length > 1 ? 's' : ''}`, at: now() };
         },
-        { at: now(), text: `Auto-apply paused: the form asks ${missing.length} thing${missing.length > 1 ? 's' : ''} Hermes doesn't know`, kind: 'agent' },
+        { at: now(), text: `Auto-apply paused: the form asks ${missing.length} thing${missing.length > 1 ? 's' : ''} ${aiName()} doesn't know`, kind: 'agent' },
       );
       finishRun(h, false, undefined, 'Needs your answers');
       return { status: 'needs_you', filled, total: fields.length, missing, message: 'Answer the new questions, then approve again', screenshot };
@@ -777,7 +778,7 @@ export async function autoApply(jobId: string, opts: { dryRun?: boolean; handle?
         await page.screenshot({ path: done, fullPage: true }).catch(() => {});
         updateJob(jobId, j => (j.work.submit = { state: 'done', at: now() }));
         markApplied(jobId, 'auto');
-        addChat(jobId, { from: 'hermes', kind: 'status', text: `Submitted your application to ${job.company}. A screenshot of the confirmation is saved with the application.` });
+        addChat(jobId, { from: 'ai', kind: 'status', text: `Submitted your application to ${job.company}. A screenshot of the confirmation is saved with the application.` });
         finishRun(h, true, 'Submitted');
         toast('success', `Applied to ${job.company} 🎉`);
         setTimeout(() => page.close().catch(() => {}), 4000);

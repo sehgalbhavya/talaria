@@ -2,7 +2,7 @@ import * as React from 'react';
 import { motion } from 'motion/react';
 import { cn, hashHue, scoreTone } from '@/lib/utils';
 
-/** Talaria mark: three square-cut speed bars, Hermes's winged sandal drawn at right angles. */
+/** Talaria mark: three square-cut speed bars, a winged sandal (a talaria) drawn at right angles. */
 export function Logo({ className, animated }: { className?: string; animated?: boolean }) {
   const bars = ['M4 19.5h22v4H4z', 'M9 13h17v4H9z', 'M14 6.5h12v4H14z'];
   const fills = ['var(--gold)', 'color-mix(in oklab, var(--gold) 65%, white)', 'color-mix(in oklab, var(--gold) 35%, white)'];

@@ -5,6 +5,7 @@ import type { Job } from '@shared/types';
 import { jobActions, useApp } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { Button, CopyButton, Dialog } from '../ui';
+import { aiName } from '@/lib/ai';
 
 export function ApplyKit({ job, open, onOpenChange }: { job: Job; open: boolean; onOpenChange: (v: boolean) => void }) {
   const profile = useApp(s => s.profile);
@@ -35,7 +36,7 @@ export function ApplyKit({ job, open, onOpenChange }: { job: Job; open: boolean;
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} className="max-w-2xl" title={done ? undefined : `Apply to ${job.company}`} description={done ? undefined : 'Everything you need, in order. Hermes filled it all in — you just paste and press submit.'}>
+    <Dialog open={open} onOpenChange={onOpenChange} className="max-w-2xl" title={done ? undefined : `Apply to ${job.company}`} description={done ? undefined : `Everything you need, in order. ${aiName()} filled it all in — you just paste and press submit.`}>
       <AnimatePresence mode="wait">
         {done ? (
           <motion.div key="done" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center py-10 text-center">

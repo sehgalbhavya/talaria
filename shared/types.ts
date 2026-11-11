@@ -37,7 +37,7 @@ export type SourceId =
   | 'company_site'
   | 'custom_board'
   | 'academic'
-  | 'hermes_web'
+  | 'web_search'
   | 'linkedin'
   | 'manual';
 
@@ -95,9 +95,9 @@ export interface Profile {
   resumeText: string;
   resumeFileName?: string;
   latexSource?: string; // the user's own LaTeX resume, kept as the template for tailoring
-  story?: string; // who you are beyond the resume, woven by Hermes from your answers: the material for cover letters
+  story?: string; // who you are beyond the resume, woven by the AI from your answers: the material for cover letters
   storyAnswers?: Record<string, string>; // your answers to the story questions, keyed by question id
-  storyWovenAt?: string; // when Hermes last wove the answers into the story (unset: the story is the answers as written)
+  storyWovenAt?: string; // when the AI last wove the answers into the story (unset: the story is the answers as written)
   ideas?: ProfileIdeas; // suggestions from the resume, offered (never filled in) across the app
   updatedAt?: string;
 }
@@ -116,7 +116,7 @@ export interface TargetCompany {
 }
 
 /** A job board you added: any site that lists jobs. Read from its RSS feed, from its listing page, or, when
- * neither gives Talaria anything to read, searched by Hermes within that site. */
+ * neither gives Talaria anything to read, searched by the AI within that site. */
 export interface CustomBoard {
   id: string;
   name: string;
@@ -220,21 +220,21 @@ export interface AgentQuestion {
   reusable?: boolean; // worth remembering for future applications (logistics), vs. specific to this job
 }
 
-/** One message in the collaborative workspace between you and Hermes. */
+/** One message in the collaborative workspace between you and the AI. */
 export interface ChatMessage {
   id: string;
   at: string;
-  from: 'hermes' | 'you';
+  from: 'ai' | 'you';
   text: string;
   kind?: 'interview' | 'questions' | 'draft' | 'revision' | 'reply' | 'status' | 'error';
   questionIds?: string[];
   changes?: { what: string; why: string }[];
-  snippet?: string; // a piece of text Hermes wrote on request (a form answer, a pitch), shown with a copy button
+  snippet?: string; // a piece of text the AI wrote on request (a form answer, a pitch), shown with a copy button
 }
 
 export type MailKind = 'rejection' | 'interview' | 'next_step' | 'offer' | 'received' | 'other';
 
-/** An email about one of your applications, as Hermes read it. */
+/** An email about one of your applications, as the AI read it. */
 export interface MailItem {
   id: string;
   at: string;
@@ -270,7 +270,7 @@ export interface TaskState {
   at: string;
 }
 
-/** The candidate's reply to one of Hermes's "why you might not" points. */
+/** The candidate's reply to one of the AI's "why you might not" points. */
 export interface GapNote {
   point: string;
   response: string;
@@ -327,7 +327,7 @@ export interface Job {
   chat?: ChatMessage[];
   interview?: { askedAt: string; doneAt?: string };
   packetHistory?: PacketVersion[]; // earlier drafts, newest first
-  paused?: { at: string; redo?: 'tailor' | 'analyze'; opts?: PrepareOptions }; // you paused Hermes on this job; redo is what Resume restarts
+  paused?: { at: string; redo?: 'tailor' | 'analyze'; opts?: PrepareOptions }; // you paused the AI on this job; redo is what Resume restarts
   liveCheck?: { at: string; live: boolean | null; reason: string }; // is the posting still open? null = couldn't tell
   mail?: MailItem[]; // replies found in your Gmail
   mailSeen?: string[]; // Gmail message ids already read
@@ -337,7 +337,7 @@ export interface Job {
   updatedAt: string;
 }
 
-export type RunKind = 'profile' | 'story' | 'scout' | 'score' | 'analyze' | 'tailor' | 'summary' | 'submit' | 'test' | 'hermes_web' | 'chat' | 'mail';
+export type RunKind = 'profile' | 'story' | 'scout' | 'score' | 'analyze' | 'tailor' | 'summary' | 'submit' | 'test' | 'web_search' | 'chat' | 'mail';
 
 export interface AgentRun {
   id: string;
@@ -378,7 +378,7 @@ export interface Settings {
   autopilot: AutopilotSettings;
   onboarded: boolean;
   toured?: boolean; // false = the first-visit board tour hasn't been seen yet
-  apply: { autoSubmit: boolean; interviewFirst?: boolean }; // interviewFirst: Hermes asks you questions before drafting
+  apply: { autoSubmit: boolean; interviewFirst?: boolean }; // interviewFirst: the AI asks you questions before drafting
   linkedin: { connected: boolean; name?: string; checkedAt?: string; lastScoutAt?: string };
   gmail?: { connected: boolean; email?: string; autoCheck?: boolean; lastCheckAt?: string; lastResult?: string; error?: string };
   voice?: { connected: boolean; model?: string }; // voice typing via your own Gemini key (being tested)
@@ -390,7 +390,7 @@ export interface Settings {
 /** Where you are in first-time setup, so closing the window halfway doesn't lose anything. */
 export interface OnboardingProgress {
   step?: string;
-  resumeName?: string; // the file Hermes is reading (or read)
+  resumeName?: string; // the file the AI is reading (or read)
   story?: Record<string, string>; // answers to the "your story" questions, keyed by question id
   confirmedPrefs?: (keyof Preferences)[]; // set by you already, so resume suggestions mustn't overwrite them
 }
@@ -414,7 +414,7 @@ export interface AIStatus {
   rateLimitedUntil?: string; // provider rate limit: queue paused until this time
 }
 
-/** Ideas Hermes draws from a resume, shown as suggestions and examples so they fit this person's field. */
+/** Ideas the AI draws from a resume, shown as suggestions and examples so they fit this person's field. */
 export interface ProfileIdeas {
   roles: string[]; // more job titles worth a look, beyond the ones filled in
   topics: string[]; // domains, products and technologies they might love
@@ -433,6 +433,7 @@ export interface AIAccounts {
 export interface AIProviderInfo {
   id: string;
   label: string;
+  name: string; // what the app calls the AI while it works: "ChatGPT is reading your resume"
   auth: 'chatgpt' | 'copilot' | 'key';
   keyUrl?: string; // where to get a key
   keyHint?: string;

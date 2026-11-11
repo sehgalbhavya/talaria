@@ -4,7 +4,7 @@ export type StrengthCheck = { id: string; ok: boolean; text: string; section: st
 
 const words = (s?: string) => (s || '').trim().split(/\s+/).filter(Boolean).length;
 
-/** What would make Hermes's resumes and letters better, as a checklist. Each item points at a Profile section. */
+/** What would make the AI's resumes and letters better, as a checklist. Each item points at a Profile section. */
 export function profileChecks(p: Profile, prefs?: Preferences | null): StrengthCheck[] {
   const story = words(p.story);
   const missing = [!p.email && 'email', !p.phone && 'phone', !p.location && 'location'].filter(Boolean) as string[];

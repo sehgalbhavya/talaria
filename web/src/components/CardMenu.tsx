@@ -8,6 +8,7 @@ import { openJob } from '@/lib/router';
 import { api } from '@/lib/api';
 import { copyText, isWorking, pendingQuestions, STATUS_META } from '@/lib/utils';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuLabel, ContextMenuSeparator, ContextMenuSub, ContextMenuTrigger } from './ui';
+import { aiName } from '@/lib/ai';
 
 const AFTER_APPLYING: JobStatus[] = ['applied', 'interviewing', 'offer'];
 
@@ -41,12 +42,12 @@ function CardMenuItems({ job }: { job: Job }) {
 
       {working && (
         <ContextMenuItem icon={<Pause />} onSelect={() => jobActions.pause(job.id)}>
-          Pause Hermes
+          Pause {aiName()}
         </ContextMenuItem>
       )}
       {job.paused && !working && (
         <ContextMenuItem icon={<Play />} onSelect={() => jobActions.resume(job.id)}>
-          Resume Hermes
+          Resume {aiName()}
         </ContextMenuItem>
       )}
 
@@ -209,21 +210,21 @@ function ColumnCommands({ job, working, pending, stale }: { job: Job; working: b
   }
 }
 
-function hermesToast(job: Job) {
-  toast(job.packet ? `Hermes is rewriting ${job.company} from scratch` : `Hermes is preparing ${job.company}`, {
+function aiToast(job: Job) {
+  toast(job.packet ? `${aiName()} is rewriting ${job.company} from scratch` : `${aiName()} is preparing ${job.company}`, {
     description: job.packet ? 'The current draft stays under Versions.' : undefined,
     icon: <Sparkles className="size-4 text-gold" />,
   });
 }
 
 function prepare(job: Job) {
-  hermesToast(job);
+  aiToast(job);
   jobActions.prepare(job.id);
 }
 
 function moveTo(job: Job, status: JobStatus) {
-  // Moving into these columns starts Hermes drafting, same as dragging there.
-  if (status === 'preparing' || (status === 'needs_input' && !job.packet)) hermesToast(job);
+  // Moving into these columns starts the AI drafting, same as dragging there.
+  if (status === 'preparing' || (status === 'needs_input' && !job.packet)) aiToast(job);
   moveJob(job.id, status);
 }
 

@@ -9,6 +9,7 @@ import { cn, fitScore, fmtDate, sourceName, STATUS_META, timeAgo } from '@/lib/u
 import { Button, Card, EmptyState, Menu, MenuContent, MenuItem, MenuTrigger, SectionTitle, Segmented } from '@/components/ui';
 import { CompanyLogo, ScoreRing } from '@/components/brand';
 import { Markdown } from '@/components/Markdown';
+import { aiName } from '@/lib/ai';
 
 const DAY = 86400000;
 
@@ -30,7 +31,7 @@ export function SummaryView() {
       <header className="flex flex-wrap items-end justify-between gap-4 px-7 pt-6 pb-5">
         <div>
           <h1 className="font-display text-[27px] leading-none tracking-[-0.015em] text-ink">Applications</h1>
-          <p className="mt-2 text-[13.5px] text-muted">Everything you've sent, how it's going, and what Hermes thinks you should do next.</p>
+          <p className="mt-2 text-[13.5px] text-muted">Everything you've sent, how it's going, and what {aiName()} thinks you should do next.</p>
         </div>
         <Button variant="secondary" icon={<Download className="size-4" />} onClick={() => (location.href = '/api/export.csv')} disabled={!applied.length}>
           Export CSV
@@ -138,7 +139,7 @@ function Funnel({ jobs }: { jobs: Job[] }) {
   const heard = applied.filter(j => j.status === 'interviewing' || j.status === 'offer' || (j.status === 'archived' && j.archivedReason === 'rejected')).length;
   const steps = [
     { label: 'Discovered', n: jobs.length, color: 'var(--st-discovered)' },
-    { label: 'Prepared by Hermes', n: prepared, color: 'var(--st-preparing)' },
+    { label: `Prepared by ${aiName()}`, n: prepared, color: 'var(--st-preparing)' },
     { label: 'Applied', n: applied.length, color: 'var(--st-applied)' },
     { label: 'Heard back', n: heard, color: 'var(--info)' },
     { label: 'Interviews', n: applied.filter(j => j.status === 'interviewing' || j.status === 'offer').length, color: 'var(--st-interviewing)' },
@@ -182,7 +183,7 @@ function ReportCard({ hasApplied }: { hasApplied: boolean }) {
             <Sparkles className="size-4" />
           </div>
           <div>
-            <div className="text-[14px] font-semibold text-ink">Hermes's summary</div>
+            <div className="text-[14px] font-semibold text-ink">{aiName()}'s summary</div>
             <div className="text-[12px] text-muted">{report ? `${fmtDate(report.from)} – ${fmtDate(report.to)} · written ${timeAgo(report.generatedAt)}` : 'A written recap of what you applied to and what to do next'}</div>
           </div>
         </div>
@@ -228,7 +229,7 @@ function ReportCard({ hasApplied }: { hasApplied: boolean }) {
         ) : report ? (
           <Markdown text={report.markdown} className={cn('prose-report max-w-[760px] text-[14px]', running && 'opacity-50')} />
         ) : (
-          <p className="text-[13.5px] text-muted">{hasApplied ? 'Ask Hermes for a recap — it groups what you applied to, spots patterns in your gaps, and suggests your next moves.' : 'Apply to a few roles first, then Hermes can summarize your progress.'}</p>
+          <p className="text-[13.5px] text-muted">{hasApplied ? `Ask ${aiName()} for a recap — it groups what you applied to, spots patterns in your gaps, and suggests your next moves.` : `Apply to a few roles first, then ${aiName()} can summarize your progress.`}</p>
         )}
       </div>
     </Card>

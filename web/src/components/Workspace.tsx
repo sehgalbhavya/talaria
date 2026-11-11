@@ -1,5 +1,5 @@
-// The collaborative workspace: the job on the left, a conversation with Hermes in the middle and
-// the live resume and cover letter on the right. Opens for jobs Hermes is working on or waiting on you.
+// The collaborative workspace: the job on the left, a conversation with the AI in the middle and
+// the live resume and cover letter on the right. Opens for jobs the AI is working on or waiting on you.
 import * as React from 'react';
 import { aiProviderLabel } from '@shared/aiProviders';
 import * as RDialog from '@radix-ui/react-dialog';
@@ -20,6 +20,7 @@ import { FitPanel } from './drawer/FitPanel';
 import { CoverLetter, FormAnswers, missingToTry, QuestionField } from './drawer/ApplicationPanel';
 import { ApplyKit } from './drawer/ApplyKit';
 import { useElapsed } from './drawer/hooks';
+import { aiName } from '@/lib/ai';
 
 type Pane = 'posting' | 'chat' | 'docs';
 
@@ -29,7 +30,7 @@ export function Workspace({ job, open }: { job: Job; open: boolean }) {
   const [kitOpen, setKitOpen] = React.useState(false);
   const score = fitScore(job);
 
-  // Same cue as the drawer: opening a job gets Hermes's take on it.
+  // Same cue as the drawer: opening a job gets the AI's take on it.
   React.useEffect(() => {
     if (!job.analysis && !job.work.analyze) jobActions.analyze(job.id).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,7 +88,7 @@ export function Workspace({ job, open }: { job: Job; open: boolean }) {
                       Posting
                     </button>
                   </Tooltip>
-                  <Tooltip content="Fit score from Hermes">
+                  <Tooltip content={`Fit score from ${aiName()}`}>
                     <div className="hidden sm:block">
                       <ScoreRing score={score} size={34} stroke={3} />
                     </div>
@@ -154,14 +155,14 @@ function JobPane({ job }: { job: Job }) {
 
 // ---------------- middle: the conversation ----------------
 
-/** Older jobs have no chat yet: show their draft and open questions as if Hermes had said so. */
+/** Older jobs have no chat yet: show their draft and open questions as if the AI had said so. */
 function displayMessages(job: Job): ChatMessage[] {
   const out: ChatMessage[] = [...(job.chat || [])];
   if (!out.length && job.packet)
-    out.push({ id: 'v-draft', at: job.packet.generatedAt, from: 'hermes', kind: 'draft', text: "Here's your tailored resume and cover letter. Tell me anything you'd like changed.", changes: job.packet.changes });
+    out.push({ id: 'v-draft', at: job.packet.generatedAt, from: 'ai', kind: 'draft', text: "Here's your tailored resume and cover letter. Tell me anything you'd like changed.", changes: job.packet.changes });
   const referenced = new Set(out.flatMap(m => m.questionIds || []));
   const loose = job.questions.filter(q => !referenced.has(q.id));
-  if (loose.length) out.push({ id: 'v-questions', at: job.updatedAt, from: 'hermes', kind: 'questions', text: 'Questions I have for you:', questionIds: loose.map(q => q.id) });
+  if (loose.length) out.push({ id: 'v-questions', at: job.updatedAt, from: 'ai', kind: 'questions', text: 'Questions I have for you:', questionIds: loose.map(q => q.id) });
   return out;
 }
 
@@ -179,9 +180,9 @@ function ChatPane({ job }: { job: Job }) {
   return (
     <>
       <div className="flex items-center gap-2.5 border-b border-line-2 px-4 py-3">
-        <HermesAvatar />
+        <AIAvatar />
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] font-semibold text-ink">Hermes</div>
+          <div className="text-[13.5px] font-semibold text-ink">{aiName()}</div>
           <div className="truncate text-[11.5px] text-muted">{working ? `${workingStep(job) || 'Working'}…` : 'Asks before it decides. Every answer shapes the draft.'}</div>
         </div>
       </div>
@@ -191,8 +192,8 @@ function ChatPane({ job }: { job: Job }) {
             <div className="mx-auto mb-3 grid size-11 place-items-center bg-[#17161c] shadow-card">
               <Logo className="size-7" />
             </div>
-            <div className="font-display text-[17px] text-ink">Work on this application with Hermes</div>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-muted">Hermes asks you a few questions first, then drafts your resume and cover letter here. Ask for any change in plain words.</p>
+            <div className="font-display text-[17px] text-ink">Work on this application with {aiName()}</div>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{aiName()} asks you a few questions first, then drafts your resume and cover letter here. Ask for any change in plain words.</p>
             <Button className="mt-4" variant="primary" icon={<Sparkles className="size-4 text-gold" />} onClick={() => jobActions.prepare(job.id)}>
               Start
             </Button>
@@ -208,7 +209,7 @@ function ChatPane({ job }: { job: Job }) {
   );
 }
 
-function HermesAvatar({ small }: { small?: boolean }) {
+function AIAvatar({ small }: { small?: boolean }) {
   return (
     <span className={cn('grid shrink-0 place-items-center bg-[#17161c] shadow-card dark:ring-1 dark:ring-white/10', small ? 'size-7' : 'size-8')}>
       <Logo className={small ? 'size-[18px]' : 'size-5'} />
@@ -237,7 +238,7 @@ function Message({ m, job }: { m: ChatMessage; job: Job }) {
   const questions = (m.questionIds || []).map(id => job.questions.find(q => q.id === id)).filter(Boolean) as AgentQuestion[];
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2.5 pr-4">
-      <HermesAvatar small />
+      <AIAvatar small />
       <div className="min-w-0 flex-1 space-y-2.5">
         <div className={cn('px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap', m.kind === 'error' ? 'bg-bad-soft/70 text-bad' : 'bg-card text-ink shadow-card')}>
           {m.kind === 'error' && <AlertTriangle className="mr-1.5 mb-0.5 inline size-3.5" />}
@@ -320,7 +321,7 @@ function QuestionsBlock({ job, questions, interview }: { job: Job; questions: Ag
         {questions.map(q => (
           <div key={q.id} className="border-b border-line-2 px-3.5 py-2.5 last:border-0">
             <div className="text-[12px] text-muted">{q.question}</div>
-            <div className={cn('mt-0.5 text-[13px]', q.answer ? 'text-ink' : 'text-faint italic')}>{q.answer || (q.skipped ? 'Left to Hermes' : 'Not answered')}</div>
+            <div className={cn('mt-0.5 text-[13px]', q.answer ? 'text-ink' : 'text-faint italic')}>{q.answer || (q.skipped ? `Left to ${aiName()}` : 'Not answered')}</div>
           </div>
         ))}
         <button onClick={() => setEditing(true)} className="flex w-full items-center justify-center gap-1.5 bg-card py-2 text-[12px] font-medium text-muted transition-colors hover:text-ink">
@@ -346,7 +347,7 @@ function QuestionsBlock({ job, questions, interview }: { job: Job; questions: Ag
       </div>
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line-2 bg-panel px-4 py-3">
         <span className="mr-auto text-[12px] text-muted">
-          {missingRequired ? `${missingRequired} required` : waiting ? (filled < questions.length ? 'Unanswered ones are left to Hermes' : 'All answered') : `${filled}/${questions.length} answered`}
+          {missingRequired ? `${missingRequired} required` : waiting ? (filled < questions.length ? `Unanswered ones are left to ${aiName()}` : 'All answered') : `${filled}/${questions.length} answered`}
         </span>
         <div className="flex flex-wrap justify-end gap-1.5">
           {settled && (
@@ -377,7 +378,7 @@ function Thinking({ job }: { job: Job }) {
   const paused = pausedUntil && Date.parse(pausedUntil) > Date.now() ? new Date(pausedUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2.5">
-      <HermesAvatar small />
+      <AIAvatar small />
       <div className="agent-sheen inline-flex items-center gap-2.5 border border-gold/15 bg-gold-soft/60 px-3.5 py-2.5 text-[13px] font-medium text-gold">
         {paused ? (
           <>
@@ -472,7 +473,7 @@ function Composer({ job }: { job: Job }) {
               send(text);
             }
           }}
-          placeholder={interview ? 'Answer above, or tell Hermes anything about this role…' : job.packet ? 'Ask for a change, or ask Hermes anything…' : 'Tell Hermes anything about this application…'}
+          placeholder={interview ? `Answer above, or tell ${aiName()} anything about this role…` : job.packet ? `Ask for a change, or ask ${aiName()} anything…` : `Tell ${aiName()} anything about this application…`}
           className="min-h-[34px] flex-1 resize-none bg-transparent py-1.5 text-[13.5px] leading-relaxed text-ink outline-none placeholder:text-faint"
         />
         <button
@@ -501,7 +502,7 @@ function DocsPane({ job }: { job: Job }) {
   const profile = useApp(s => s.profile);
   const stale = job.status === 'needs_input' && !tailoring && isStaleDraft(job, profile);
 
-  // Whatever Hermes just changed comes into view, with a brief highlight. The resume PDF only
+  // Whatever the AI just changed comes into view, with a brief highlight. The resume PDF only
   // reloads when the resume itself changed, not for a cover-letter edit.
   const resumeVersion = React.useMemo(() => (p ? hash(`${p.latex || ''}${JSON.stringify(p.resume)}`) : ''), [p?.latex, p?.resume]);
   const [flash, setFlash] = React.useState(false);
@@ -599,16 +600,16 @@ function DocsPane({ job }: { job: Job }) {
           (p ? (
             <>
               {p.latexError && (
-                <div className="mb-3 bg-info-soft px-4 py-2.5 text-[12.5px] text-info">Hermes's wording wouldn't compile in your LaTeX template, so this is your original text in it. Ask Hermes to try again.</div>
+                <div className="mb-3 bg-info-soft px-4 py-2.5 text-[12.5px] text-info">{aiName()}'s wording wouldn't compile in your LaTeX template, so this is your original text in it. Ask {aiName()} to try again.</div>
               )}
               <PdfFrame src={`/api/jobs/${job.id}/resume.pdf?v=${resumeVersion}`} title="Tailored resume" dim={tailoring} />
             </>
           ) : (
             <PdfFrame src="/api/profile/resume.pdf" title="Your resume" dim />
           ))}
-        {doc === 'letter' && (p ? <div className="mx-auto max-w-[760px]">{p.coverLetter ? <CoverLetter job={job} /> : <Placeholder text="Hermes is writing the cover letter." />}</div> : <Placeholder text="The cover letter is written with your first draft, for every job, whether or not the form asks for one." />)}
+        {doc === 'letter' && (p ? <div className="mx-auto max-w-[760px]">{p.coverLetter ? <CoverLetter job={job} /> : <Placeholder text={`${aiName()} is writing the cover letter.`} />}</div> : <Placeholder text="The cover letter is written with your first draft, for every job, whether or not the form asks for one." />)}
         {doc === 'original' && <PdfFrame src="/api/profile/resume.pdf" title="Your resume" />}
-        {doc === 'answers' && <div className="mx-auto max-w-[760px]">{p ? <FormAnswers job={job} /> : <Placeholder text="Hermes drafts answers to the usual form questions with your first draft." />}</div>}
+        {doc === 'answers' && <div className="mx-auto max-w-[760px]">{p ? <FormAnswers job={job} /> : <Placeholder text={`${aiName()} drafts answers to the usual form questions with your first draft.`} />}</div>}
 
         <AnimatePresence>{(doc === 'resume' || doc === 'letter') && (tailoring || (!p && !awaitingInterview(job) && isWorking(job))) && <BuildingOverlay job={job} />}</AnimatePresence>
         {doc === 'resume' && !p && awaitingInterview(job) && (
@@ -616,7 +617,7 @@ function DocsPane({ job }: { job: Job }) {
             <div className="pointer-events-auto max-w-sm bg-card/95 p-5 text-center shadow-pop backdrop-blur">
               <SquareAsterisk className="mx-auto size-5 text-accent" />
               <div className="mt-2 text-[14px] font-semibold text-ink">This is your resume as it is today</div>
-              <p className="mt-1 text-[12.5px] leading-relaxed text-muted">Answer Hermes's questions in the chat and the tailored version is built from them, right here.</p>
+              <p className="mt-1 text-[12.5px] leading-relaxed text-muted">Answer {aiName()}'s questions in the chat and the tailored version is built from them, right here.</p>
             </div>
           </div>
         )}
@@ -630,14 +631,14 @@ function RewriteButton({ job, part, busy }: { job: Job; part: 'resume' | 'cover'
   const [sending, setSending] = React.useState(false);
   const label = part === 'resume' ? 'Rewrite resume' : 'Rewrite letter';
   return (
-    <Tooltip content={part === 'resume' ? 'Hermes tailors your resume again from scratch for this job. The cover letter stays as it is.' : 'Hermes writes a new cover letter from scratch. The resume stays as it is.'}>
+    <Tooltip content={part === 'resume' ? `${aiName()} tailors your resume again from scratch for this job. The cover letter stays as it is.` : `${aiName()} writes a new cover letter from scratch. The resume stays as it is.`}>
       <button
         disabled={busy || sending}
         onClick={async () => {
           setSending(true);
           try {
             await api.post(`/api/jobs/${job.id}/rewrite`, { part });
-            toast(part === 'resume' ? 'Hermes is rewriting your resume' : 'Hermes is writing a new cover letter', { icon: <Sparkles className="size-4 text-gold" /> });
+            toast(part === 'resume' ? `${aiName()} is rewriting your resume` : `${aiName()} is writing a new cover letter`, { icon: <Sparkles className="size-4 text-gold" /> });
           } finally {
             setSending(false);
           }
@@ -694,7 +695,7 @@ function BuildingOverlay({ job }: { job: Job }) {
       <div className="w-full max-w-sm overflow-hidden bg-card/95 shadow-pop backdrop-blur">
         <div className="agent-sheen flex items-center gap-3 border-b border-gold/15 bg-gold-soft/50 px-4 py-3">
           <Sparkles className="size-4 animate-pulse-soft text-gold" />
-          <span className="text-[13px] font-semibold text-ink">{job.packet ? 'Hermes is revising' : 'Hermes is building your application'}</span>
+          <span className="text-[13px] font-semibold text-ink">{job.packet ? `${aiName()} is revising` : `${aiName()} is building your application`}</span>
         </div>
         <ol className="space-y-0.5 p-3">
           {steps.map((s, i) => {
@@ -753,13 +754,13 @@ function Footer({ job, openKit }: { job: Job; openKit: () => void }) {
   else if (interview)
     left = (
       <span className="text-[13px] text-muted">
-        Hermes has {pending} question{pending === 1 ? '' : 's'} before drafting.{' '}
+        {aiName()} has {pending} question{pending === 1 ? '' : 's'} before drafting.{' '}
         <button className="font-medium text-accent hover:underline" onClick={() => jobActions.draftNow(job.id)}>
           Draft without answering
         </button>
       </span>
     );
-  else if (working) left = <span className="text-[13px] text-muted">{workingStep(job)}… You can close this; Hermes keeps going.</span>;
+  else if (working) left = <span className="text-[13px] text-muted">{workingStep(job)}… You can close this; {aiName()} keeps going.</span>;
   else if (submit?.state === 'error') left = <span className="text-[13px] font-medium text-bad">{submit.error}</span>;
   else if (pending > 0) left = <span className="text-[13px] font-medium text-warn">Answer {pending} question{pending > 1 ? 's' : ''} in the chat before finalizing.</span>;
   else if (job.packet)

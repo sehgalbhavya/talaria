@@ -11,6 +11,7 @@ import { placeOptions } from '@/lib/suggest';
 import { composeStory, STORY_QUESTIONS } from '@shared/story';
 import { PageSectionBlock, RailCard, SaveBar, SectionPage, useSectionJump } from '@/components/SectionPage';
 import { toast } from 'sonner';
+import { aiName } from '@/lib/ai';
 
 const SECTIONS = [
   { id: 'resume', label: 'Resume' },
@@ -23,7 +24,7 @@ const SECTIONS = [
   { id: 'answers', label: 'Application answers' },
 ];
 
-/** Who you are: what Hermes writes your resume, letters and form answers from. */
+/** Who you are: what the AI writes your resume, letters and form answers from. */
 export function ProfileView() {
   const stored = useApp(s => s.profile)!;
   const prefs = useApp(s => s.preferences);
@@ -39,7 +40,7 @@ export function ProfileView() {
   const save = async () => {
     setSaving(true);
     try {
-      // Your story has its own save, and Hermes may be weaving it right now: leave it out of this one.
+      // Your story has its own save, and the AI may be weaving it right now: leave it out of this one.
       const { story: _story, storyAnswers: _answers, storyWovenAt: _woven, ...rest } = p;
       await api.put('/api/profile', rest);
       toast.success('Profile saved');
@@ -50,7 +51,7 @@ export function ProfileView() {
 
   const replace = async (f?: File | null) => {
     if (!f) return;
-    if (!confirm('Replace your resume? Hermes will rebuild your profile from the new file (your preferences stay).')) return;
+    if (!confirm(`Replace your resume? ${aiName()} will rebuild your profile from the new file (your preferences stay).`)) return;
     const fd = new FormData();
     fd.append('file', f);
     setUploading(true);
@@ -65,7 +66,7 @@ export function ProfileView() {
   return (
     <SectionPage
       title="Profile"
-      subtitle="Who you are. Hermes writes your resume, cover letters and form answers from this."
+      subtitle={`Who you are. ${aiName()} writes your resume, cover letters and form answers from this.`}
       sections={SECTIONS}
       rail={<StrengthRail p={p} prefs={prefs} onShowText={() => setShowText(true)} />}
     >
@@ -74,7 +75,7 @@ export function ProfileView() {
           <div className="grid size-11 place-items-center bg-accent-soft text-accent">{uploading ? <Loader className="size-5 animate-spin" /> : <FileText className="size-5" />}</div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 truncate text-[14px] font-semibold text-ink">
-              {uploading ? 'Hermes is reading your new resume…' : stored.resumeFileName || 'Pasted resume'}
+              {uploading ? `${aiName()} is reading your new resume…` : stored.resumeFileName || 'Pasted resume'}
               {stored.latexSource && !uploading && <Badge tone="accent">LaTeX template</Badge>}
             </div>
             <div className="text-[12.5px] text-muted">
@@ -238,12 +239,12 @@ export function ProfileView() {
         </Card>
       </PageSectionBlock>
 
-      <PageSectionBlock id="answers" title="Application answers" desc="What Hermes types into application forms for you. These save as you go, separately from the Save button.">
+      <PageSectionBlock id="answers" title="Application answers" desc={`What ${aiName()} types into application forms for you. These save as you go, separately from the Save button.`}>
         <ApplicationAnswers prefs={prefs} />
       </PageSectionBlock>
 
       <SaveBar dirty={dirty} saving={saving} onSave={save} onReset={() => setP(stored)} />
-      <Dialog open={showText} onOpenChange={setShowText} title="Extracted resume text" description="This is exactly what Hermes reads." className="max-w-2xl">
+      <Dialog open={showText} onOpenChange={setShowText} title="Extracted resume text" description={`This is exactly what ${aiName()} reads.`} className="max-w-2xl">
         <pre className="mt-4 max-h-[60vh] overflow-auto bg-panel p-4 font-mono text-[12px] leading-relaxed whitespace-pre-wrap text-ink-2">{stored.resumeText}</pre>
       </Dialog>
     </SectionPage>
@@ -268,7 +269,7 @@ function startingAnswers(profile: Profile, onboarding?: Record<string, string>):
 
 const clean = (a: Record<string, string>) => JSON.stringify(Object.fromEntries(STORY_QUESTIONS.map(q => [q.id, (a[q.id] || '').trim()]).filter(([, v]) => v)));
 
-/** Your story as questions you answer; Hermes weaves the answers into the story your cover letters use. */
+/** Your story as questions you answer; the AI weaves the answers into the story your cover letters use. */
 function StorySection() {
   const profile = useApp(s => s.profile)!;
   const onboarding = useApp(s => s.settings?.onboarding?.story);
@@ -290,7 +291,7 @@ function StorySection() {
     setAnswers(a => ({ ...a, [id]: text }));
   };
 
-  // A story written before the questions existed: Hermes sorts your own sentences into them, once.
+  // A story written before the questions existed: the AI sorts your own sentences into them, once.
   const asked = React.useRef(false);
   React.useEffect(() => {
     if (!start.carriedOver || profile.storyAnswers || asked.current) return;
@@ -307,7 +308,7 @@ function StorySection() {
     setSaving(true);
     try {
       await api.post('/api/profile/story', { answers, again });
-      toast.success(again ? 'Hermes is weaving your story again' : 'Saved. Hermes is weaving your answers into your story.');
+      toast.success(again ? `${aiName()} is weaving your story again` : `Saved. ${aiName()} is weaving your answers into your story.`);
     } finally {
       setSaving(false);
     }
@@ -319,22 +320,22 @@ function StorySection() {
     <>
       <Card className="space-y-5 p-5">
         <p className="text-[12.5px] leading-relaxed text-muted">
-          Your resume says what you did; this is who you are. Answer in your own words, like you'd talk to a friend. Hermes weaves your answers into your story, and your cover letters are written from it.
+          Your resume says what you did; this is who you are. Answer in your own words, like you'd talk to a friend. {aiName()} weaves your answers into your story, and your cover letters are written from it.
           It never adds anything you didn't say, so the more real detail you give, the more personal every letter gets.
         </p>
         {sorting === 'sorting' && !touched.current && (
           <p className="flex items-center gap-2 bg-gold-soft/40 px-3 py-2 text-[12px] leading-relaxed text-ink-2">
-            <Loader className="size-3.5 shrink-0 animate-spin text-gold" /> Hermes is sorting your earlier story into these questions, using your own sentences…
+            <Loader className="size-3.5 shrink-0 animate-spin text-gold" /> {aiName()} is sorting your earlier story into these questions, using your own sentences…
           </p>
         )}
         {sorting === 'failed' && !profile.storyAnswers && (
           <p className="bg-gold-soft/40 px-3 py-2 text-[12px] leading-relaxed text-ink-2">
-            Hermes couldn't sort your earlier story right now, so all of it is under <strong className="font-semibold">Anything else</strong> and nothing is lost. Move parts of it into the questions if you like, then save.
+            {aiName()} couldn't sort your earlier story right now, so all of it is under <strong className="font-semibold">Anything else</strong> and nothing is lost. Move parts of it into the questions if you like, then save.
           </p>
         )}
         {sortedFromStory && !touched.current && (
           <p className="bg-gold-soft/40 px-3 py-2 text-[12px] leading-relaxed text-ink-2">
-            Hermes sorted your earlier story into these questions, using your own sentences. Anything that didn't fit a question is under <strong className="font-semibold">Anything else</strong>. Check them, then save to weave your story.
+            {aiName()} sorted your earlier story into these questions, using your own sentences. Anything that didn't fit a question is under <strong className="font-semibold">Anything else</strong>. Check them, then save to weave your story.
           </p>
         )}
         {STORY_QUESTIONS.map(q => (
@@ -371,9 +372,9 @@ function StorySection() {
             <div className="text-[13.5px] font-semibold text-ink">Your story, as your cover letters see it</div>
             <div className="mt-0.5 text-[12px] text-muted">
               {weaving
-                ? 'Hermes is weaving your answers…'
+                ? `${aiName()} is weaving your answers…`
                 : profile.storyWovenAt
-                  ? `Woven by Hermes ${timeAgo(profile.storyWovenAt, false)} · ${words} words`
+                  ? `Woven by ${aiName()} ${timeAgo(profile.storyWovenAt, false)} · ${words} words`
                   : profile.story
                     ? 'Not woven yet: this is your story as you wrote it.'
                     : 'Answer the questions above and save to see it here.'}
@@ -383,7 +384,7 @@ function StorySection() {
             Weave again
           </Button>
         </div>
-        {failed && <p className="mt-3 bg-bad-soft px-3 py-2 text-[12px] text-bad">Hermes couldn't weave it ({lastRun.error?.split('\n')[0]}). Until it can, cover letters use your answers as written.</p>}
+        {failed && <p className="mt-3 bg-bad-soft px-3 py-2 text-[12px] text-bad">{aiName()} couldn't weave it ({lastRun.error?.split('\n')[0]}). Until it can, cover letters use your answers as written.</p>}
         {profile.story && <p className={cn('mt-4 text-[13.5px] leading-relaxed whitespace-pre-wrap text-ink-2', weaving && 'opacity-50')}>{profile.story}</p>}
       </Card>
     </>
@@ -421,8 +422,8 @@ function StrengthRail({ p, prefs, onShowText }: { p: Profile; prefs: Preferences
           ))}
         </div>
       </RailCard>
-      <RailCard title="What Hermes reads">
-        <p className="text-[12.5px] leading-relaxed text-muted">The text pulled from your resume, exactly as Hermes sees it.</p>
+      <RailCard title={`What ${aiName()} reads`}>
+        <p className="text-[12.5px] leading-relaxed text-muted">The text pulled from your resume, exactly as {aiName()} sees it.</p>
         <Button className="mt-3" variant="secondary" size="sm" onClick={onShowText}>
           View extracted text
         </Button>
@@ -435,7 +436,7 @@ function StrengthRail({ p, prefs, onShowText }: { p: Profile; prefs: Preferences
 
 /**
  * The questions almost every form asks, kept as answers in the answer bank. The categories copy how
- * the server files answers (CATEGORIES in server/agents/pipeline.ts), so an answer here is the one Hermes reuses.
+ * the server files answers (CATEGORIES in server/agents/pipeline.ts), so an answer here is the one the AI reuses.
  */
 const CATEGORIES: [string, RegExp][] = [
   ['sponsorship', /sponsor/i],
@@ -480,7 +481,7 @@ function ApplicationAnswers({ prefs }: { prefs: Preferences | null | undefined }
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
           <div>
             <div className="text-[13.5px] font-medium text-ink">Do you need visa sponsorship?</div>
-            <div className="text-[12px] text-muted">Hermes also uses this to flag jobs that can't sponsor.</div>
+            <div className="text-[12px] text-muted">{aiName()} also uses this to flag jobs that can't sponsor.</div>
           </div>
           <Segmented
             size="sm"
@@ -592,7 +593,7 @@ function BulletsField({ value, onChange }: { value: string[]; onChange: (v: stri
 
 // ---------------- remembered answers ----------------
 
-/** Answers Hermes saved while preparing applications. `answers` is what to list; edits apply to the whole bank (`all`). */
+/** Answers the AI saved while preparing applications. `answers` is what to list; edits apply to the whole bank (`all`). */
 function AnswerBank({ answers, all }: { answers: AnswerBankItem[]; all: AnswerBankItem[] }) {
   const [editing, setEditing] = React.useState<string | null>(null);
   const [draft, setDraft] = React.useState('');
@@ -602,7 +603,7 @@ function AnswerBank({ answers, all }: { answers: AnswerBankItem[]; all: AnswerBa
     return (
       <div className="flex items-start gap-3 border border-dashed border-line p-4 text-[12.5px] leading-relaxed text-muted">
         <BookmarkCheck className="mt-0.5 size-4 shrink-0 text-faint" />
-        When Hermes asks you something else while preparing an application, your answer is saved here and reused, so you never get asked twice.
+        When {aiName()} asks you something else while preparing an application, your answer is saved here and reused, so you never get asked twice.
       </div>
     );
 

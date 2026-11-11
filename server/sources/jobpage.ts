@@ -2,7 +2,7 @@
 // many career sites block with CAPTCHAs). Order of preference:
 //   1. the page's schema.org JobPosting block (Google-for-Jobs markup) — exact and instant
 //   2. the page's readable text (static HTML, or rendered in a hidden browser if it needs JS),
-//      handed to the caller to structure with Hermes
+//      handed to the caller to structure with the AI
 
 import type { RemoteMode } from '../../shared/types.ts';
 import { cleanHtml, decodeEntities, domainFromUrl, formatSalary, guessRemote, htmlToText } from '../lib/text.ts';

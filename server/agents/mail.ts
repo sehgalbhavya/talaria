@@ -1,5 +1,5 @@
 // Reads replies to your applications from Gmail (IMAP with an app password, read-only use),
-// asks Hermes what each one says, and updates the board: rejections turn the card red,
+// asks the AI what each one says, and updates the board: rejections turn the card red,
 // interview invitations move it to Interviewing, offers to Offer.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,6 +13,7 @@ import { getJob, getSettings, listJobs, now, setSettings, updateJob } from '../l
 import { moveJob } from './pipeline.ts';
 import { oneOf, str } from './common.ts';
 import { noEmDash } from '../lib/latexSlots.ts';
+import { aiName } from '../lib/ai/index.ts';
 
 // The app password lives in its own file, never in settings (settings are sent to the browser).
 const CRED_FILE = path.join(DATA_DIR, 'gmail.json');
@@ -187,7 +188,7 @@ async function run(opts: { quiet?: boolean }): Promise<string> {
 
     for (const { job, mails } of batches) {
       if (rateLimitedUntil()) {
-        h.log('Hermes is paused by a rate limit; the rest waits for the next check');
+        h.log(`${aiName()} is paused by a rate limit; the rest waits for the next check`);
         break;
       }
       found += await processMail(job, mails, h, changes);
@@ -207,7 +208,7 @@ async function run(opts: { quiet?: boolean }): Promise<string> {
   }
 }
 
-/** Have Hermes read one application's new emails, then update the job. Returns how many were about it. */
+/** Have the AI read one application's new emails, then update the job. Returns how many were about it. */
 export async function processMail(job: Job, mails: Found[], h: RunHandle, changes: string[]) {
   h.log(`${job.company}: ${mails.length} new email${mails.length === 1 ? '' : 's'}`);
   const raw = await askJson<any>({ prompt: CLASSIFY_PROMPT(job, mails), handle: h, priority: 0, timeoutSec: 180 });

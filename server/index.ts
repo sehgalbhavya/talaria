@@ -12,7 +12,7 @@ import { importHermesSignIns } from './lib/ai/migrate.ts';
 import { findHermes, folderSize, removeHermes } from './lib/ai/hermesLegacy.ts';
 import { buildProfileFromResume, canRereadResume, extractResumeText, rereadResume } from './agents/profile.ts';
 import { filterAndRank, getScoutState, runScout } from './agents/scout.ts';
-import { analyzeJob, answerQuestions, applyGapNotes, chatWithHermes, coverage, resumeText as resumePlainText, markApplied, moveJob, pauseJob, prepareApplication, refreshStaleDrafts, reorderColumn, restoreVersion, resumeJob, reviseCoverLetter, setGapNote, startDrafting } from './agents/pipeline.ts';
+import { analyzeJob, answerQuestions, applyGapNotes, chatWithAI, coverage, resumeText as resumePlainText, markApplied, moveJob, pauseJob, prepareApplication, refreshStaleDrafts, reorderColumn, restoreVersion, resumeJob, reviseCoverLetter, setGapNote, startDrafting } from './agents/pipeline.ts';
 import { followUpOnDiscoveries, startAutopilot } from './agents/autopilot.ts';
 import { checkBeforeApply, checkLiveness } from './agents/liveness.ts';
 import { generateReport } from './agents/report.ts';
@@ -31,6 +31,7 @@ import { checkMail, connectGmail, disconnectGmail, startMailWatch } from './agen
 import { connectGemini, disconnectGemini, transcribeWav, vocabulary } from './lib/voice.ts';
 import { playwrightReady } from './lib/browser.ts';
 import { compileLatex, findPdflatex, isLatexName, latexToText, readLatexUpload, splitLatex } from './lib/latex.ts';
+import { aiName } from './lib/ai/index.ts';
 
 const PORT = Number(process.env.TALARIA_PORT || 5178);
 const app = express();
@@ -147,7 +148,7 @@ app.post('/api/ai/key', async (req, res) => {
 // ---------------- removing Hermes Agent (existing users, once) ----------------
 
 let hermesSize: { home: string; bytes: Promise<number> } | null = null;
-/** Counting a Hermes folder takes a while (often 5 GB in many small files), so it starts once and is shared. */
+/** Counting a Hermes Agent folder takes a while (often 5 GB in many small files), so it starts once and is shared. */
 function measureHermes(home: string) {
   if (hermesSize?.home !== home) hermesSize = { home, bytes: folderSize(home) };
   return hermesSize.bytes;
@@ -238,7 +239,7 @@ app.post('/api/resume', upload.single('file'), async (req, res) => {
   }
   if (!text || text.trim().length < 80) return res.status(400).json({ error: "That resume looks empty — if it's a scanned PDF, paste the text instead." });
   const model = typeof req.body?.model === 'string' ? req.body.model.trim() : '';
-  // Onboarding carries on while Hermes reads; the profile and the run's outcome arrive as events.
+  // Onboarding carries on while the AI reads; the profile and the run's outcome arrive as events.
   if (req.query.background === '1') {
     // A failure is recorded on the run, which onboarding shows in place.
     buildProfileFromResume(text, fileName, latex, model).catch(() => {});
@@ -261,7 +262,7 @@ app.put('/api/profile', (req, res) => {
   res.json(store.setProfile(next));
 });
 
-// Your answers to the story questions: saved now, woven into your story by Hermes in the background.
+// Your answers to the story questions: saved now, woven into your story by the AI in the background.
 app.post('/api/profile/story', (req, res) => {
   const answers = req.body?.answers;
   if (!answers || typeof answers !== 'object') return res.status(400).json({ error: 'answers are required' });
@@ -278,7 +279,7 @@ app.post('/api/profile/story/sort', async (_req, res) => {
   try {
     res.json(await sortStory());
   } catch (err: any) {
-    res.status(400).json({ error: `Hermes couldn't sort your story: ${err.message.split('\n')[0]}` });
+    res.status(400).json({ error: `${aiName()} couldn't sort your story: ${err.message.split('\n')[0]}` });
   }
 });
 
@@ -322,7 +323,7 @@ app.post('/api/preferences/suggest-companies', async (_req, res) => {
   try {
     res.json({ companies: await suggestCompanies() });
   } catch (err: any) {
-    res.status(400).json({ error: `Hermes couldn't suggest companies: ${err.message.split('\n')[0]}` });
+    res.status(400).json({ error: `${aiName()} couldn't suggest companies: ${err.message.split('\n')[0]}` });
   }
 });
 
@@ -384,7 +385,7 @@ app.post('/api/jobs', async (req, res) => {
   if (!raw && url && !description) {
     // Read the page from this computer first: many career sites block remote extraction services
     // (reCAPTCHA), but serve the page — often with schema.org JobPosting markup — to a normal visit.
-    const h = startRun('hermes_web', `Reading a job link`);
+    const h = startRun('web_search', `Reading a job link`);
     h.log(url);
     let pageText = '';
     try {
@@ -405,7 +406,7 @@ app.post('/api/jobs', async (req, res) => {
     if (!raw) {
       const paused = rateLimitedUntil();
       if (paused) {
-        finishRun(h, false, undefined, 'The AI is paused by a rate limit');
+        finishRun(h, false, undefined, `${aiName()} is paused by a rate limit`);
         const at = new Date(paused).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         return res.status(429).json({ error: `Your AI provider has Talaria paused until ${at}, so it can't read that page yet. Switch to “Paste details” to add it now — the fit analysis will run as soon as the pause ends.` });
       }
@@ -596,7 +597,7 @@ app.post('/api/jobs/:id/chat', (req, res) => {
   const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
   if (!store.getJob(req.params.id)) return job404(res);
   if (!text) return res.status(400).json({ error: 'Say something first.' });
-  chatWithHermes(req.params.id, text).catch(() => {});
+  chatWithAI(req.params.id, text).catch(() => {});
   res.json({ started: true });
 });
 
@@ -615,7 +616,7 @@ app.post('/api/jobs/:id/restore', (req, res) => {
 app.post('/api/jobs/:id/finalize', async (req, res) => {
   const j = store.getJob(req.params.id);
   if (!j?.packet) return job404(res);
-  // Same rule as the UI's pendingQuestions: a question you left to Hermes ("Draft without answering") isn't open.
+  // Same rule as the UI's pendingQuestions: a question you left to the AI ("Draft without answering") isn't open.
   const open = j.questions.filter(q => q.required && !q.answer?.trim() && !q.skipped).length;
   if (open) return res.status(400).json({ error: `Answer the ${open} open question${open > 1 ? 's' : ''} first.` });
   // One careful look at the posting first, so you never land on a closed form.
@@ -845,9 +846,9 @@ app.listen(PORT, '127.0.0.1', () => {
   if (fs.existsSync(path.join(DIST_DIR, 'index.html'))) console.log(`  Open http://127.0.0.1:${PORT} in your browser\n`);
   try {
     const brought = importHermesSignIns();
-    if (brought.length) console.log(`  Brought over your sign-ins from Hermes: ${brought.join(', ')}`);
+    if (brought.length) console.log(`  Brought over your sign-ins from Hermes Agent: ${brought.join(', ')}`);
   } catch (err: any) {
-    console.warn(`  Couldn't bring over sign-ins from Hermes: ${err.message}`);
+    console.warn(`  Couldn't bring over sign-ins from Hermes Agent: ${err.message}`);
   }
   if (store.getSettings().hermesCleanup === 'offer') {
     const found = findHermes();

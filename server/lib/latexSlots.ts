@@ -385,7 +385,7 @@ export function sanitizeEdits(slots: Slots, raw: SlotEdits, opts: { hasNotes?: b
     }
     if (proposed && known) {
       const items = proposed.split(',').map(x => x.trim()).filter(Boolean);
-      // Keywords you asked Hermes to work in (only where true) may appear as written in the posting.
+      // Keywords you asked the AI to work in (only where true) may appear as written in the posting.
       const asked = (x: string) => (opts.allowSkills || []).some(k => textHasKeyword(x, k) || textHasKeyword(k, x));
       const kept = items.filter(x => skillKnown(x, known) || asked(x));
       if (kept.length < items.length) fixes.push(`removed skills you never mentioned: ${items.filter(x => !kept.includes(x)).map(plainLatex).join(', ')}`);

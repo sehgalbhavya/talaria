@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Job, JobStatus, SourceId } from '@shared/types';
+import { aiName } from '@/lib/ai';
 
 export const cn = (...v: ClassValue[]) => twMerge(clsx(v));
 
@@ -45,9 +46,22 @@ export function scoreTone(score?: number): { fg: string; bg: string; label: stri
   return { fg: 'var(--bad)', bg: 'var(--bad-soft)', label: 'Long shot' };
 }
 
+// The AI's own name is read when a label is shown, so it follows whichever AI is connected.
 export const STATUS_META: Record<JobStatus, { label: string; hint: string; color: string }> = {
-  discovered: { label: 'Discovered', hint: 'New matches Hermes found for you', color: 'var(--st-discovered)' },
-  preparing: { label: 'Hermes is on it', hint: 'Tailoring resumes and writing cover letters', color: 'var(--st-preparing)' },
+  discovered: {
+    label: 'Discovered',
+    get hint() {
+      return `New matches ${aiName()} found for you`;
+    },
+    color: 'var(--st-discovered)',
+  },
+  preparing: {
+    get label() {
+      return `${aiName()} is on it`;
+    },
+    hint: 'Tailoring resumes and writing cover letters',
+    color: 'var(--st-preparing)',
+  },
   needs_input: { label: 'Needs you', hint: 'Answer questions or approve before submitting', color: 'var(--st-needs_input)' },
   applied: { label: 'Applied', hint: 'Submitted — waiting to hear back', color: 'var(--st-applied)' },
   interviewing: { label: 'Interviewing', hint: 'In conversations with the company', color: 'var(--st-interviewing)' },
@@ -72,7 +86,7 @@ export const SOURCE_LABEL: Record<SourceId, string> = {
   company_site: 'Company website',
   custom_board: 'Your job board',
   academic: 'Academic job boards',
-  hermes_web: 'Web search',
+  web_search: 'Web search',
   linkedin: 'LinkedIn',
   manual: 'Added by you',
 };
@@ -80,7 +94,7 @@ export const SOURCE_LABEL: Record<SourceId, string> = {
 /** Where a job was found: the name of your own board when it came from one. */
 export const sourceName = (j: Pick<Job, 'source' | 'via'>) => j.via || SOURCE_LABEL[j.source];
 
-/** Hermes asked its questions and is waiting on you before writing the first draft. */
+/** The AI asked its questions and is waiting on you before writing the first draft. */
 export const awaitingInterview = (j: Job) => Boolean(j.interview && !j.interview.doneAt && !j.packet);
 
 export function pendingQuestions(j: Job) {
@@ -112,7 +126,7 @@ export function workingStep(j: Job) {
   const s = j.work.submit;
   if (s && (s.state === 'running' || s.state === 'queued')) return s.step || 'Applying';
   const c = j.work.chat;
-  if (c && (c.state === 'running' || c.state === 'queued')) return c.step || 'Hermes is thinking';
+  if (c && (c.state === 'running' || c.state === 'queued')) return c.step || `${aiName()} is thinking`;
   const t = j.work.tailor;
   if (t && (t.state === 'running' || t.state === 'queued')) return t.step || 'Preparing application';
   const a = j.work.analyze;

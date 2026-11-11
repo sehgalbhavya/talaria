@@ -9,10 +9,11 @@ import { weaveKeywords } from '../lib/weave.ts';
 import { findAnswer, getJob, getPreferences, getProfile, getSettings, listAnswers, listJobs, newId, nextOrder, now, updateJob, upsertAnswer } from '../lib/store.ts';
 import { RULES_GROWTH, RULES_NO_FABRICATION, clamp, jobBrief, oneOf, preferencesBrief, profileBrief, str, strArr } from './common.ts';
 import { isStaleDraft, resumeHash } from '../../shared/resume.ts';
+import { aiName } from '../lib/ai/index.ts';
 
 const inflight = new Map<string, Promise<unknown>>();
 
-/** The candidate's own replies to the gaps Hermes flagged — first-hand facts that outrank the resume. */
+/** The candidate's own replies to the gaps the AI flagged — first-hand facts that outrank the resume. */
 function gapNotesBlock(job: Job): string {
   const notes = (job.gapNotes || []).filter(n => n.response.trim());
   if (!notes.length) return '';
@@ -44,7 +45,7 @@ function pushHistory(j: Job) {
   j.packetHistory = [{ at: j.packet.generatedAt, note: j.packet.note || 'Earlier draft', packet: packet as Packet }, ...(j.packetHistory || [])].slice(0, 6);
 }
 
-/** Everything the candidate has told Hermes for this application. */
+/** Everything the candidate has told the AI for this application. */
 function answersBlock(job: Job): string {
   const answered = job.questions.filter(q => q.answer?.trim()).map(q => `Q: ${q.question}\nA: ${q.answer!.trim()}`);
   const skipped = job.questions.filter(q => q.skipped && !q.answer?.trim()).map(q => `- ${q.question}`);
@@ -390,7 +391,7 @@ async function tailorLatexWholeBody(job: Job, resume: TailoredResume, h: RunHand
     const res = await callAI({ prompt: LATEX_PROMPT({ ...base, extra }), handle: h, timeoutSec: 300, priority, model: getSettings().ai.tailorModel || undefined });
     const body = extractBody(res.text);
     if (!body) {
-      lastError = 'Hermes did not return a LaTeX body.';
+      lastError = `${aiName()} did not return a LaTeX body.`;
       extra = 'Your previous answer was missing the <<<BODY … BODY>>> markers. Return the body between them.';
       continue;
     }
@@ -406,7 +407,7 @@ async function tailorLatexWholeBody(job: Job, resume: TailoredResume, h: RunHand
     const c = await compileLatex(tex);
     if (!c.ok) {
       lastError = c.error || 'Compile failed';
-      h.log(`LaTeX error, asking Hermes to fix it: ${lastError.split('\n')[0]}`);
+      h.log(`LaTeX error, asking ${aiName()} to fix it: ${lastError.split('\n')[0]}`);
       extra = `Your previous body failed to compile with this error — fix it:\n${lastError}`;
       continue;
     }
@@ -414,10 +415,10 @@ async function tailorLatexWholeBody(job: Job, resume: TailoredResume, h: RunHand
     const thin = thinRoles(body, parts.body);
     if ((c.pages ?? 1) <= 2 && !thin) break;
     if (thin) {
-      h.log(`Some roles came back with fewer than 3 bullets — asking Hermes to restore them`);
+      h.log(`Some roles came back with fewer than 3 bullets — asking ${aiName()} to restore them`);
       extra = `In your previous version these roles had fewer than 3 bullets: ${thin}. Every role needs at least 3 bullets (or all of its original bullets) — restore them from the original.`;
     } else {
-      h.log(`Tailored resume is ${c.pages} pages — asking Hermes to tighten wording to two`);
+      h.log(`Tailored resume is ${c.pages} pages — asking ${aiName()} to tighten wording to two`);
       extra = `Your previous version ran to ${c.pages} pages. Tighten wording so it fits on TWO pages, without removing roles or going below 3 bullets per role.`;
     }
   }
@@ -425,7 +426,7 @@ async function tailorLatexWholeBody(job: Job, resume: TailoredResume, h: RunHand
   return { latexStatus: 'error', latexError: lastError };
 }
 
-// Slot-based tailoring: Hermes may only change the text inside the summary, skills lines and
+// Slot-based tailoring: the AI may only change the text inside the summary, skills lines and
 // bullet lists of the user's own template; code enforces counts, de-duplication and non-empty
 // sections before splicing. The header, layout and section structure can't be damaged.
 
@@ -624,7 +625,7 @@ async function tailorLatex(job: Job, resume: TailoredResume, h: RunHandle, opts:
     const { edits: sane, report } = sanitizeEdits(slots, proposal, {
       hasNotes: Boolean(gapNotesBlock(job)),
       allowSkills: opts.keywords,
-      // Skills from your own resume top up a line Hermes cut too short (matched by line theme).
+      // Skills from your own resume top up a line the AI cut too short (matched by line theme).
       skillPool: Object.fromEntries((parseSlots(splitLatex(profile.latexSource)?.body || '').skills || []).map(s => [s.label.toLowerCase(), s.items])),
       known: [profile.resumeText, profile.skills?.join(', '), slots.skills.map(s => s.items).join(', '), gapNotesBlock(job), answersBlock(job)].filter(Boolean).join('\n'),
     });
@@ -644,7 +645,7 @@ async function tailorLatex(job: Job, resume: TailoredResume, h: RunHandle, opts:
     extra = `Your text broke the LaTeX build with this error — avoid the offending characters/commands:\n${lastError}`;
   }
 
-  // Fallback 1: keep Hermes's wording but strip anything beyond \textbf and simple math.
+  // Fallback 1: keep the AI's wording but strip anything beyond \textbf and simple math.
   if (lastEdits) {
     const strict: SlotEdits = {
       summary: lastEdits.summary && strictClean(lastEdits.summary),
@@ -700,7 +701,7 @@ function syncResumeFromSlots(resume: TailoredResume, slots: Slots, edits: SlotEd
 
 // ====================== INTERVIEW (before drafting) ======================
 
-const INTERVIEW_PROMPT = (o: { profile: string; prefs: string; job: string; analysis: string; known: string; gapNotes: string; story?: string }) => `You are Hermes, about to tailor ONE candidate's resume and write their cover letter for the job below. Before you write anything, interview the candidate so the application sounds like them and uses facts only they know. Don't make a choice yourself when you could ask.
+const INTERVIEW_PROMPT = (o: { profile: string; prefs: string; job: string; analysis: string; known: string; gapNotes: string; story?: string }) => `You are about to tailor ONE candidate's resume and write their cover letter for the job below. Before you write anything, interview the candidate so the application sounds like them and uses facts only they know. Don't make a choice yourself when you could ask.
 
 CANDIDATE
 ${o.profile}
@@ -738,7 +739,7 @@ Return ONLY JSON:
 - "required": true only for facts the application form will need (logistics). Personalisation questions are optional.
 - "reusable": true for facts that hold for every application (sponsorship, salary, start date, relocation, a skill they have); false for answers specific to this job.`;
 
-/** Ask the candidate what Hermes needs to make the draft theirs. Returns true when it's now waiting on them. */
+/** Ask the candidate what the AI needs to make the draft theirs. Returns true when it's now waiting on them. */
 async function interviewCandidate(id: string, h: RunHandle, priority: number): Promise<boolean> {
   const job = getJob(id)!;
   const profile = getProfile()!;
@@ -779,16 +780,16 @@ async function interviewCandidate(id: string, h: RunHandle, priority: number): P
       j.statusChangedAt = now();
       j.order = nextOrder('needs_input');
       pushChat(j, {
-        from: 'hermes',
+        from: 'ai',
         kind: 'interview',
         text: noEmDash(str(raw?.intro, 700)) || "Before I write anything, a few questions so this application sounds like you.",
         questionIds: qs.map(q => q.id),
       });
     },
-    { at: now(), text: `Hermes has ${open.length} question${open.length > 1 ? 's' : ''} before drafting`, kind: 'agent' },
+    { at: now(), text: `${aiName()} has ${open.length} question${open.length > 1 ? 's' : ''} before drafting`, kind: 'agent' },
   );
   finishRun(h, true, `${open.length} question(s) before drafting`);
-  toast('info', `${job.company}: Hermes has ${open.length} question${open.length > 1 ? 's' : ''} before drafting`);
+  toast('info', `${job.company}: ${aiName()} has ${open.length} question${open.length > 1 ? 's' : ''} before drafting`);
   return true;
 }
 
@@ -864,7 +865,7 @@ export async function writeCoverLetter(job: Job, resume: TailoredResume, h: RunH
     model: getSettings().ai.tailorModel || undefined,
   });
   const text = noEmDash(cleanText(str(raw?.coverLetter, 5000)));
-  if (!text) throw new Error('Hermes returned an empty cover letter.');
+  if (!text) throw new Error(`${aiName()} returned an empty cover letter.`);
   return text;
 }
 
@@ -883,15 +884,15 @@ export function reviseCoverLetter(id: string, instructions: string, priority = 1
           pushHistory(j);
           j.packet = { ...j.packet!, coverLetter: text, note: instructions.slice(0, 120), generatedAt: now(), approvedAt: undefined };
           j.work.tailor = { state: 'done', at: now() };
-          pushChat(j, { from: 'hermes', kind: 'revision', text: opts.fresh ? 'Wrote a new cover letter from scratch; the resume is unchanged. The previous letter is under Versions.' : 'Rewrote the cover letter. Take a look on the right.' });
+          pushChat(j, { from: 'ai', kind: 'revision', text: opts.fresh ? 'Wrote a new cover letter from scratch; the resume is unchanged. The previous letter is under Versions.' : 'Rewrote the cover letter. Take a look on the right.' });
         },
-        { at: now(), text: `Hermes revised the cover letter: “${instructions.slice(0, 80)}”`, kind: 'agent' },
+        { at: now(), text: `${aiName()} revised the cover letter: “${instructions.slice(0, 80)}”`, kind: 'agent' },
       )!;
       finishRun(h, true, 'Cover letter revised');
       return updated;
     } catch (err: any) {
       setWork(id, 'tailor', isPausedError(err) ? null : { state: 'error', error: err.message });
-      if (!isPausedError(err)) addChat(id, { from: 'hermes', kind: 'error', text: `I couldn't rewrite the cover letter: ${err.message}` });
+      if (!isPausedError(err)) addChat(id, { from: 'ai', kind: 'error', text: `I couldn't rewrite the cover letter: ${err.message}` });
       finishRun(h, false, undefined, err.message);
       throw err;
     }
@@ -908,7 +909,7 @@ export function restoreVersion(id: string, index: number) {
       j.packetHistory = history;
       pushHistory(j);
       j.packet = { ...v.packet, approvedAt: undefined };
-      pushChat(j, { from: 'hermes', kind: 'status', text: `Restored the earlier version: “${v.note}”.` });
+      pushChat(j, { from: 'ai', kind: 'status', text: `Restored the earlier version: “${v.note}”.` });
     },
     { at: now(), text: 'You restored an earlier draft', kind: 'user' },
   );
@@ -916,7 +917,7 @@ export function restoreVersion(id: string, index: number) {
 
 // ====================== CHAT ======================
 
-const CHAT_PROMPT = (o: { name: string; role: string; job: string; fit: string; status: string; hunt: string; draft: string; answers: string; history: string; message: string }) => `You are Hermes, ${o.name ? `${o.name}'s` : 'the candidate\'s'} career agent and sparring partner, working WITH them on their application for ${o.role}. You share a workspace: they see the job posting, this chat, and the live resume and cover letter. This chat is a real conversation, not a command line: they may ask for changes, but they also just talk to you, ask how things are going, think out loud, vent, or want your honest opinion.
+const CHAT_PROMPT = (o: { name: string; role: string; job: string; fit: string; status: string; hunt: string; draft: string; answers: string; history: string; message: string }) => `You are ${o.name ? `${o.name}'s` : 'the candidate\'s'} career agent and sparring partner, working WITH them on their application for ${o.role}. You share a workspace: they see the job posting, this chat, and the live resume and cover letter. This chat is a real conversation, not a command line: they may ask for changes, but they also just talk to you, ask how things are going, think out loud, vent, or want your honest opinion.
 
 HOW YOU TALK
 - Like a smart colleague who has been on this with them all along: warm, direct, specific, a little personality. Use their first name now and then, not every message.
@@ -966,7 +967,7 @@ Return ONLY JSON:
 "reply": your chat message, first person, in the voice above. As long as the message deserves and no longer: one line for small talk, up to about 180 words for a status rundown or advice. For "revise"/"draft", say what you're about to change and that you'll tell them when it's on the right. For "ask", a sentence of context before the questions. For "write", one short line introducing the text.
 "text": only for "write": the finished text and nothing else, no em dashes. No em dashes. Never promise to add experience they haven't described.`;
 
-/** "3 hours ago", "2 days ago": how Hermes says when something happened. */
+/** "3 hours ago", "2 days ago": how the AI says when something happened. */
 function ago(iso?: string) {
   if (!iso) return 'unknown';
   const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
@@ -981,7 +982,7 @@ function ago(iso?: string) {
 
 const STATUS_WORDS: Record<JobStatus, string> = {
   discovered: 'Discovered (not started)',
-  preparing: 'Preparing (Hermes is drafting)',
+  preparing: 'Preparing (you are drafting it)',
   needs_input: 'Needs input (draft or questions waiting on the candidate)',
   applied: 'Applied',
   interviewing: 'Interviewing',
@@ -989,7 +990,7 @@ const STATUS_WORDS: Record<JobStatus, string> = {
   archived: 'Archived',
 };
 
-/** What's done, what's in progress and what's waiting, so Hermes can answer "where are we?" with facts. */
+/** What's done, what's in progress and what's waiting, so the AI can answer "where are we?" with facts. */
 function statusForPrompt(job: Job): string {
   const out: string[] = [];
   out.push(`Board column: ${STATUS_WORDS[job.status] || job.status}, since ${ago(job.statusChangedAt)}${job.archivedReason ? ` (reason: ${job.archivedReason})` : ''}.`);
@@ -1068,8 +1069,8 @@ async function waitForTailor(id: string) {
   await (inflight.get(`tailor:${id}`) as Promise<unknown> | undefined)?.catch(() => {});
 }
 
-/** A message from you in the workspace. Hermes replies, asks, or revises the draft. */
-export async function chatWithHermes(id: string, text: string) {
+/** A message from you in the workspace. The AI replies, asks, or revises the draft. */
+export async function chatWithAI(id: string, text: string) {
   const job = getJob(id);
   if (!job) throw new Error('Job not found');
   const message = text.trim().slice(0, 4000);
@@ -1085,7 +1086,7 @@ export async function chatWithHermes(id: string, text: string) {
       .slice(-25, -1)
       .map(
         m =>
-          `[${ago(m.at)}] ${m.from === 'you' ? 'Candidate' : m.kind === 'status' ? 'System' : 'Hermes'}: ${m.text}` +
+          `[${ago(m.at)}] ${m.from === 'you' ? 'Candidate' : m.kind === 'status' ? 'System' : 'You'}: ${m.text}` +
           (m.changes?.length ? ` [changes: ${m.changes.map(c => c.what).join('; ')}]` : '') +
           (m.snippet ? ` [wrote: ${m.snippet.slice(0, 200)}${m.snippet.length > 200 ? '…' : ''}]` : '') +
           (m.questionIds?.length ? ` [asked: ${m.questionIds.map(qid => job.questions.find(q => q.id === qid)?.question).filter(Boolean).join(' / ')}]` : ''),
@@ -1109,7 +1110,7 @@ export async function chatWithHermes(id: string, text: string) {
       handle: h,
       priority: 2,
       timeoutSec: 180,
-      onStart: () => setWork(id, 'chat', { state: 'running', step: 'Hermes is thinking' }),
+      onStart: () => setWork(id, 'chat', { state: 'running', step: `${aiName()} is thinking` }),
     });
     const action = oneOf(raw?.action, ['write', 'revise', 'draft', 'ask', 'none'] as const, 'none');
     // "Write me X": just that text, within any limit you set; the resume and letter stay as they are.
@@ -1131,7 +1132,7 @@ export async function chatWithHermes(id: string, text: string) {
     updateJob(id, j => {
       if (questions.length) j.questions = mergeQuestions(j.questions, questions);
       pushChat(j, {
-        from: 'hermes',
+        from: 'ai',
         kind: questions.length ? 'questions' : 'reply',
         text:
           noEmDash(str(raw?.reply, 3000)) ||
@@ -1167,7 +1168,7 @@ export async function chatWithHermes(id: string, text: string) {
   } catch (err: any) {
     updateJob(id, j => {
       delete j.work.chat;
-      if (!isPausedError(err)) pushChat(j, { from: 'hermes', kind: 'error', text: `I couldn't reply just now: ${err.message.split('\n')[0]}` });
+      if (!isPausedError(err)) pushChat(j, { from: 'ai', kind: 'error', text: `I couldn't reply just now: ${err.message.split('\n')[0]}` });
     });
     finishRun(h, false, undefined, err.message);
     throw err;
@@ -1191,7 +1192,7 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
         j.status = 'preparing';
         j.statusChangedAt = now();
         j.order = nextOrder('preparing');
-      }, { at: now(), text: 'Hermes started preparing your application', kind: 'agent' });
+      }, { at: now(), text: `${aiName()} started preparing your application`, kind: 'agent' });
     }
     setWork(id, 'tailor', { state: 'running', step: opts.refine ? (opts.fresh ? 'Rewriting your resume from scratch' : opts.keywords?.length ? 'Working in ATS keywords' : opts.instructions ? 'Revising your application' : 'Working your answers in') : 'Analyzing fit', error: undefined });
 
@@ -1201,7 +1202,7 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
         await analyzeJob(id, { handle: h, priority: opts.priority ?? 1 });
         job = getJob(id)!;
       }
-      // Ask before deciding: Hermes interviews you once, before the first draft.
+      // Ask before deciding: the AI interviews you once, before the first draft.
       if (!opts.refine && !opts.skipInterview && !job.packet && !job.interview && getSettings().apply?.interviewFirst !== false) {
         if (await interviewCandidate(id, h, opts.priority ?? 1)) return getJob(id)!;
         job = getJob(id)!;
@@ -1324,7 +1325,7 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
             j => {
               j.packet!.keywordCoverage = { before: before.pct, after: prev.pct, missing: prev.missing, unfit: [...new Set([...prev.unfit, ...opts.keywords!])].filter(k => prev.missing.includes(k)) };
               j.work.tailor = { state: 'done', at: now() };
-              pushChat(j, { from: 'hermes', kind: 'revision', text: "I couldn't work those keywords in without losing ones already there, so your current version stays. The ones left don't match your experience, so I won't push them again." });
+              pushChat(j, { from: 'ai', kind: 'revision', text: "I couldn't work those keywords in without losing ones already there, so your current version stays. The ones left don't match your experience, so I won't push them again." });
             },
             { at: now(), text: 'Keyword pass kept your current version (it would have scored lower)', kind: 'agent' },
           );
@@ -1353,7 +1354,7 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
           j.work.tailor = { state: 'done', at: now() };
           const cov = packet.keywordCoverage;
           pushChat(j, {
-            from: 'hermes',
+            from: 'ai',
             kind: firstDraft ? 'draft' : 'revision',
             text: firstDraft
               ? `Your first draft is ready: tailored resume and cover letter are on the right${cov && cov.after > cov.before ? `, ATS keyword match ${cov.before}% to ${cov.after}%` : ''}. Tell me anything you'd like changed.`
@@ -1371,7 +1372,7 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
             changes: packet.changes.length ? packet.changes : undefined,
           });
           const open = added.filter(q => !q.answer);
-          if (open.length) pushChat(j, { from: 'hermes', kind: 'questions', text: 'While writing that I hit a couple of things only you can tell me. Fill these in when you can:', questionIds: added.map(q => q.id) });
+          if (open.length) pushChat(j, { from: 'ai', kind: 'questions', text: 'While writing that I hit a couple of things only you can tell me. Fill these in when you can:', questionIds: added.map(q => q.id) });
           if (j.status === 'preparing') {
             j.status = 'needs_input';
             j.statusChangedAt = now();
@@ -1382,15 +1383,15 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
           at: now(),
           text: opts.refine
             ? opts.instructions
-              ? `Hermes revised the application: “${opts.instructions.slice(0, 80)}”`
-              : 'Hermes updated the application with your answers'
+              ? `${aiName()} revised the application: “${opts.instructions.slice(0, 80)}”`
+              : `${aiName()} updated the application with your answers`
             : `Application drafted · ATS keyword match ${before.pct}% → ${after.pct}%` + (newQuestions.filter(q => !q.answer).length ? ` · ${newQuestions.filter(q => !q.answer).length} question(s) for you` : ''),
           kind: 'agent',
         },
       )!;
       const pending = updated.questions.filter(q => q.required && !q.answer).length;
       finishRun(h, true, pending ? `${pending} question(s) need your input` : 'Ready for your review');
-      toast('success', pending ? `${job.company}: Hermes has ${pending} question${pending > 1 ? 's' : ''} for you` : `${job.company}: application ready for review`);
+      toast('success', pending ? `${job.company}: ${aiName()} has ${pending} question${pending > 1 ? 's' : ''} for you` : `${job.company}: application ready for review`);
       return updated;
     } catch (err: any) {
       if (isPausedError(err)) {
@@ -1399,7 +1400,7 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
         throw err;
       }
       setWork(id, 'tailor', { state: 'error', error: err.message });
-      addChat(id, { from: 'hermes', kind: 'error', text: `I hit a snag: ${err.message.split('\n')[0]}` });
+      addChat(id, { from: 'ai', kind: 'error', text: `I hit a snag: ${err.message.split('\n')[0]}` });
       finishRun(h, false, undefined, err.message);
       toast('error', `Couldn't prepare ${job.company}: ${err.message}`);
       throw err;
@@ -1419,7 +1420,7 @@ function unpause(id: string) {
   if (getJob(id)?.paused) updateJob(id, j => void (j.paused = undefined));
 }
 
-/** Stop Hermes working on this job until you resume it. A draft you already have stays as it is. */
+/** Stop the AI working on this job until you resume it. A draft you already have stays as it is. */
 export function pauseJob(id: string) {
   const job = getJob(id);
   if (!job) throw new Error('Job not found');
@@ -1438,7 +1439,7 @@ export function pauseJob(id: string) {
         j.order = nextOrder('needs_input');
       }
     },
-    { at: now(), text: 'You paused Hermes on this job', kind: 'user' },
+    { at: now(), text: `You paused ${aiName()} on this job`, kind: 'user' },
   );
 }
 
@@ -1450,7 +1451,7 @@ export async function resumeJob(id: string) {
   // Let the work the pause stopped finish unwinding first, or it would look like a failure.
   await Promise.allSettled([inflight.get(`tailor:${id}`), inflight.get(`analyze:${id}`)]);
   unpause(id);
-  updateJob(id, () => {}, { at: now(), text: 'You resumed Hermes on this job', kind: 'user' });
+  updateJob(id, () => {}, { at: now(), text: `You resumed ${aiName()} on this job`, kind: 'user' });
   if (p?.redo === 'tailor') prepareApplication(id, { ...p.opts, priority: 1 }).catch(() => {});
   else if (p?.redo === 'analyze') analyzeJob(id, { force: true, priority: 1 }).catch(() => {});
   return getJob(id);
@@ -1467,7 +1468,7 @@ export function staleDrafts(): Job[] {
 export function refreshStaleDrafts(ids?: string[]): string[] {
   const jobs = staleDrafts().filter(j => !ids || ids.includes(j.id));
   for (const j of jobs) {
-    addChat(j.id, { from: 'hermes', kind: 'status', text: 'Your resume changed, so I am rewriting this draft from it. Your answers carry over.' });
+    addChat(j.id, { from: 'ai', kind: 'status', text: 'Your resume changed, so I am rewriting this draft from it. Your answers carry over.' });
     prepareApplication(j.id, { priority: 0, skipInterview: true, note: 'Refreshed with new resume' }).catch(() => {});
   }
   return jobs.map(j => j.id);
@@ -1488,7 +1489,7 @@ export async function answerQuestions(id: string, answers: { id: string; answer:
         q.skipped = !text && Boolean(a.skip);
       }
     },
-    { at: now(), text: given ? `You answered ${given} question${given === 1 ? '' : 's'}` : 'You left the questions to Hermes', kind: 'user' },
+    { at: now(), text: given ? `You answered ${given} question${given === 1 ? '' : 's'}` : `You left the questions to ${aiName()}`, kind: 'user' },
   );
   for (const a of answers) {
     const q = job.questions.find(q => q.id === a.id);
@@ -1497,7 +1498,7 @@ export async function answerQuestions(id: string, answers: { id: string; answer:
   }
   const fresh = getJob(id)!;
   if (interviewPending(fresh)) {
-    // Once every interview question is answered or left to Hermes, the first draft starts.
+    // Once every interview question is answered or left to the AI, the first draft starts.
     const open = fresh.questions.filter(q => q.stage === 'interview' && !q.answer && !q.skipped);
     if (!open.length) startDrafting(id).catch(() => {});
   } else if (refine && fresh.packet) {
@@ -1516,12 +1517,12 @@ export function moveJob(id: string, status: JobStatus, opts: { reason?: ArchiveR
   if (from === status && opts.index == null) return job;
 
   if (interviewPending(job) && status === 'preparing') {
-    // Dragging back to Hermes while it waits on your answers means "go ahead without them".
+    // Dragging back to the AI while it waits on your answers means "go ahead without them".
     startDrafting(id).catch(() => {});
     return getJob(id);
   }
   if (status === 'preparing' && job.packet) {
-    // Dragging a draft back to Hermes rewrites it from scratch (with your current resume).
+    // Dragging a draft back to the AI rewrites it from scratch (with your current resume).
     if (refreshStaleDrafts([id]).length) return getJob(id);
     prepareApplication(id, { skipInterview: true, note: 'Fresh draft' }).catch(() => {});
     return getJob(id);
@@ -1608,7 +1609,7 @@ export function setGapNote(id: string, point: string, response: string, remember
 export async function applyGapNotes(id: string) {
   const job = getJob(id);
   if (!job) throw new Error('Job not found');
-  updateJob(id, () => {}, { at: now(), text: `You added notes on ${job.gapNotes?.length || 0} gap(s) — Hermes is re-scoring and rewriting`, kind: 'user' });
+  updateJob(id, () => {}, { at: now(), text: `You added notes on ${job.gapNotes?.length || 0} gap(s) — ${aiName()} is re-scoring and rewriting`, kind: 'user' });
   await analyzeJob(id, { force: true, priority: 1 }).catch(() => {});
   const fresh = getJob(id)!;
   return prepareApplication(id, fresh.packet ? { refine: true, priority: 1, instructions: 'The candidate added notes explaining experience behind the gaps flagged in the fit analysis. Rework the resume, cover letter and answers so this experience is clearly visible.' } : { priority: 1 });

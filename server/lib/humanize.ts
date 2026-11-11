@@ -1,6 +1,6 @@
 // Humanizer: the last pass over a tailored resume, before it becomes a PDF. Code finds what makes
 // writing read as machine-made (stock AI vocabulary, tacked-on "-ing" clauses, the same opening
-// verb again and again, typographic leftovers); Hermes rewrites only the lines that have them,
+// verb again and again, typographic leftovers); the AI rewrites only the lines that have them,
 // and code keeps a rewrite only if every number, name and job keyword survives and it reads
 // cleaner than before. Strong action verbs and the candidate's own metaphors are left alone.
 import { askJson, isPausedError, type RunHandle } from './ai/index.ts';

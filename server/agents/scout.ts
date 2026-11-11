@@ -13,6 +13,7 @@ import { dedupeKey, getPreferences, getProfile, getSettings, hasSeen, insertJob,
 import { guessSeniority, truncate } from '../lib/text.ts';
 import { clamp, preferencesBrief, profileBrief, str } from './common.ts';
 import { splitClosed } from './liveness.ts';
+import { aiName } from '../lib/ai/index.ts';
 
 let state: ScoutState = { running: false };
 export const getScoutState = () => state;
@@ -280,14 +281,14 @@ async function webScout(profile: Profile, prefs: Preferences, h: RunHandle): Pro
     const url = str(it?.url, 500);
     if (!/^https?:\/\//.test(url)) continue;
     if (/indeed\.com\/q-|linkedin\.com\/jobs\/search|glassdoor\.[a-z.]+\/Job\//i.test(url)) continue;
-    const hydrated = (await S.hydrateFromUrl(url).catch(() => null)) || (await readPosting(url, { title: str(it.title, 200), company: str(it.company, 160), location: str(it.location, 200), source: 'hermes_web' }).catch(() => null));
+    const hydrated = (await S.hydrateFromUrl(url).catch(() => null)) || (await readPosting(url, { title: str(it.title, 200), company: str(it.company, 160), location: str(it.location, 200), source: 'web_search' }).catch(() => null));
     if (hydrated) {
       out.push(hydrated);
       continue;
     }
     const summary = str(it.summary, 2000);
     out.push({
-      source: 'hermes_web',
+      source: 'web_search',
       sourceId: url,
       url,
       applyUrl: url,
@@ -295,7 +296,7 @@ async function webScout(profile: Profile, prefs: Preferences, h: RunHandle): Pro
       company: str(it.company, 160),
       location: str(it.location, 200) || 'Unspecified',
       remote: (['remote', 'hybrid', 'onsite'].includes(it.remote) ? it.remote : 'unknown') as RawJob['remote'],
-      descriptionHtml: summary ? `<p>${summary.replace(/</g, '&lt;')}</p><p><em>Summary written by Hermes from the original posting. Open the posting for full details.</em></p>` : '',
+      descriptionHtml: summary ? `<p>${summary.replace(/</g, '&lt;')}</p><p><em>Summary written by ${aiName()} from the original posting. Open the posting for full details.</em></p>` : '',
       descriptionText: summary,
       tags: [],
     });
@@ -374,7 +375,7 @@ export interface ScoutOptions {
 export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] }> {
   if (state.running) throw new Error('A search is already running.');
   const profile = getProfile();
-  if (!profile) throw new Error('Add your resume first so Hermes knows what to look for.');
+  if (!profile) throw new Error(`Add your resume first so ${aiName()} knows what to look for.`);
   const prefs = getPreferences();
   const settings = getSettings();
   const maxNew = opts.maxNew ?? 20;
@@ -442,11 +443,11 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
 
     h.log(`Querying ${tasks.length} boards for: ${queries.join(', ')}`);
     const webPromise =
-      src.hermes_web && settings.ai.webSearch
+      src.web_search && settings.ai.webSearch
         ? (async () => {
-            const wh = startRun('hermes_web', 'Web search for openings');
+            const wh = startRun('web_search', 'Web search for openings');
             try {
-              wh.log('Searching the open web with DuckDuckGo via Hermes');
+              wh.log('Searching the open web');
               const jobs = await webScout(profile, prefs, wh);
               finishRun(wh, true, `${jobs.length} postings found`);
               return jobs;
@@ -482,7 +483,7 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
     const searchWithin = (title: string, names: string[], search: (sh: RunHandle) => Promise<RawJob[]>) =>
       names.length && settings.ai.webSearch
         ? (async () => {
-            const sh = startRun('hermes_web', title);
+            const sh = startRun('web_search', title);
             try {
               sh.log(names.join(', '));
               const jobs = await search(sh);
@@ -512,10 +513,10 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
     const boardShortlist = candidates.slice(0, Math.max(maxNew + 6, 18));
     let total = boardShortlist.length;
     let scored = 0;
-    let webDone = !(src.hermes_web && settings.ai.webSearch);
+    let webDone = !(src.web_search && settings.ai.webSearch);
     const progress = () => {
       const p = 0.36 + 0.6 * (scored / Math.max(1, total));
-      const phase = scored >= total && !webDone ? 'Waiting for web search' : `Hermes is scoring matches (${scored}/${total})`;
+      const phase = scored >= total && !webDone ? 'Waiting for web search' : `${aiName()} is scoring matches (${scored}/${total})`;
       setState({ progress: Math.min(0.97, p), phase, found: boardJobs.length, added: added.length });
     };
     progress();
@@ -660,7 +661,7 @@ export function sourceLabel(s: SourceId) {
       company_site: 'the company website',
       custom_board: 'one of your job boards',
       academic: 'an academic job board',
-      hermes_web: 'Web search',
+      web_search: 'Web search',
       linkedin: 'LinkedIn',
       manual: 'manual entry',
     } as Record<string, string>

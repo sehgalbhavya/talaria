@@ -31,6 +31,7 @@ import { Logo } from '@/components/brand';
 import { AddJobDialog } from '@/components/AddJobDialog';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import { aiName } from '@/lib/ai';
 
 type Sort = 'fit' | 'newest';
 
@@ -157,8 +158,8 @@ export function Board() {
       api.post('/api/jobs/reorder', { status: target, ids: next }, { quiet: true });
       return;
     }
-    if (target === 'preparing' && job.packet) toast(`Hermes is rewriting ${job.company} from scratch`, { description: 'The current draft stays under Versions.', icon: <Sparkles className="size-4 text-gold" /> });
-    else if (target === 'preparing' || (target === 'needs_input' && !job.packet)) toast(`Hermes is preparing ${job.company}`, { icon: <Sparkles className="size-4 text-gold" /> });
+    if (target === 'preparing' && job.packet) toast(`${aiName()} is rewriting ${job.company} from scratch`, { description: 'The current draft stays under Versions.', icon: <Sparkles className="size-4 text-gold" /> });
+    else if (target === 'preparing' || (target === 'needs_input' && !job.packet)) toast(`${aiName()} is preparing ${job.company}`, { icon: <Sparkles className="size-4 text-gold" /> });
     moveJob(id, target);
   };
 
@@ -231,7 +232,7 @@ export function Board() {
               variant="primary"
               icon={<GraduationCap className="size-4 text-gold" />}
               loading={phdRunning}
-              onClick={() => api.post('/api/scout/phd').then(() => toast('Hermes is searching for PhD positions. This takes a few minutes.', { icon: <GraduationCap className="size-4 text-gold" /> }))}
+              onClick={() => api.post('/api/scout/phd').then(() => toast(`${aiName()} is searching for PhD positions. This takes a few minutes.`, { icon: <GraduationCap className="size-4 text-gold" /> }))}
             >
               {phdRunning ? 'Searching PhDs…' : 'Find PhDs'}
             </Button>
@@ -478,9 +479,9 @@ function SortableCard({ job, hidden }: { job: Job; hidden: boolean }) {
 
 function ColumnEmpty({ status, filtered }: { status: JobStatus; filtered: boolean }) {
   const text: Partial<Record<JobStatus, string>> = {
-    discovered: filtered ? 'Nothing matches your filters.' : 'Hit “Find jobs” and Hermes will scout the boards for roles that fit you.',
-    preparing: 'Drag a job here — or press Prepare — and Hermes will tailor your resume and draft the application.',
-    needs_input: 'Questions from Hermes and drafts awaiting your approval land here.',
+    discovered: filtered ? 'Nothing matches your filters.' : `Hit “Find jobs” and ${aiName()} will scout the boards for roles that fit you.`,
+    preparing: `Drag a job here — or press Prepare — and ${aiName()} will tailor your resume and draft the application.`,
+    needs_input: `Questions from ${aiName()} and drafts awaiting your approval land here.`,
     applied: 'Submitted applications collect here so you can track replies.',
   };
   return <div className="border border-dashed border-line px-4 py-6 text-center text-[12.5px] leading-relaxed text-faint">{text[status] || 'Drop a card here.'}</div>;

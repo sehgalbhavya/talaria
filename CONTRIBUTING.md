@@ -23,7 +23,7 @@ npm install
 npm run dev
 ```
 
-`npm run dev` serves the web app with hot reload at http://localhost:5177 and the API at http://127.0.0.1:5178. You need Hermes installed and signed in for any AI feature to work (see the README).
+`npm run dev` serves the web app with hot reload at http://localhost:5177 and the API at http://127.0.0.1:5178. AI features need an AI account connected in Settings › AI model (see the README).
 
 To keep your real job hunt separate from your test data, point the dev server at another folder:
 

@@ -5,6 +5,7 @@ import type { Job, JobStatus } from '../../shared/types.ts';
 import { listJobs, now, updateJob } from '../lib/store.ts';
 import { askJson } from '../lib/ai/index.ts';
 import { renderHtml } from '../sources/jobpage.ts';
+import { aiName } from '../lib/ai/index.ts';
 
 type Result = { live: boolean | null; reason: string };
 /** What a check needs: a posting from the board, or one the scout just found. */
@@ -186,7 +187,7 @@ function closedReason(html: string, text: string): string | null {
 }
 
 /**
- * The careful check before you apply: the pattern check, then Hermes reads the posting page itself,
+ * The careful check before you apply: the pattern check, then the AI reads the posting page itself,
  * so unusual wording ("We have found our candidate", a greyed-out apply button) isn't missed.
  */
 export async function checkBeforeApply(job: Job): Promise<Result> {
@@ -213,8 +214,8 @@ ${text.slice(0, 9000)}`,
       priority: 2,
       timeoutSec: 120,
     });
-    if (r?.verdict === 'closed') return { live: false, reason: r.quote ? `The page says “${String(r.quote).slice(0, 160)}”` : 'Hermes read the page: applications are closed' };
-    if (r?.verdict === 'open') return { live: true, reason: 'Hermes read the page: it is still open' };
+    if (r?.verdict === 'closed') return { live: false, reason: r.quote ? `The page says “${String(r.quote).slice(0, 160)}”` : `${aiName()} read the page: applications are closed` };
+    if (r?.verdict === 'open') return { live: true, reason: `${aiName()} read the page: it is still open` };
   } catch {}
   return quick;
 }
